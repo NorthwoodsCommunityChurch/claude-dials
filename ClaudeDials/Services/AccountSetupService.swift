@@ -48,11 +48,14 @@ enum AccountSetupService {
 
         guard let claude = claudeCLIPath() else { return false }
 
-        // Run `claude` with an isolated config dir so login writes a separate
-        // Keychain item. The CLI prompts to log in when the dir has no creds.
+        // Run `claude auth login` with an isolated config dir so the login writes
+        // a SEPARATE Keychain item (keyed by the config dir) instead of
+        // overwriting the default profile. `auth login` is the real CLI command —
+        // `/login` is an interactive in-session command and does not target a
+        // profile. `--claudeai` selects subscription auth (not API billing).
         let escapedDir = dir.replacingOccurrences(of: "\"", with: "\\\"")
         let escapedClaude = claude.replacingOccurrences(of: "\"", with: "\\\"")
-        let command = "CLAUDE_CONFIG_DIR=\"\(escapedDir)\" \"\(escapedClaude)\" /login"
+        let command = "CLAUDE_CONFIG_DIR=\"\(escapedDir)\" \"\(escapedClaude)\" auth login --claudeai"
 
         let appleScriptSource = """
         tell application "Terminal"

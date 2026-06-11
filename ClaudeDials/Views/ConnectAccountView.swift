@@ -97,7 +97,7 @@ struct ConnectAccountView: View {
                 .foregroundStyle(Theme.Ink.secondary)
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
-            Text("CLAUDE_CONFIG_DIR=\"\(AccountSetupService.secondConfigDir)\" claude /login")
+            Text("CLAUDE_CONFIG_DIR=\"\(AccountSetupService.secondConfigDir)\" claude auth login --claudeai")
                 .font(.system(size: 11, design: .monospaced))
                 .foregroundStyle(Theme.Ink.primary)
                 .padding(Theme.Space.small)
