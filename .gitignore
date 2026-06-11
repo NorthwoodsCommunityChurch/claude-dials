@@ -1,0 +1,26 @@
+# Build artifacts
+build/
+DerivedData/
+*.app
+*.zip
+*.dmg
+*.dSYM
+
+# Generated Xcode project (xcodegen is the source of truth)
+*.xcodeproj
+
+# macOS
+.DS_Store
+
+# Sparkle signing keys (never commit — live in OneDrive secrets)
+*.pem
+ed25519-private.txt
+
+# Local prototype/preview artifacts
+design/icon-master.png
+.playwright-mcp/
+
+# Bundled brand fonts — Adobe Myriad Pro, not ours to redistribute.
+# Copied from the northwoods-brand repo at build time; app falls back to the
+# system font if absent. See README "Building from Source".
+ClaudeDials/Resources/Fonts/*.otf

@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Claude Dials — design sketch</title>
+<style>
+  /* ---------- Brand fonts (from northwoods-brand repo) ---------- */
+  @font-face { font-family:'Myriad Pro'; src:url('../../../northwoods-brand/assets/fonts/MyriadPro-Regular.otf') format('opentype'); font-weight:400; }
+  @font-face { font-family:'Myriad Pro'; src:url('../../../northwoods-brand/assets/fonts/MyriadPro-Semibold.otf') format('opentype'); font-weight:600; }
+  @font-face { font-family:'Myriad Pro'; src:url('../../../northwoods-brand/assets/fonts/MyriadPro-Black.otf') format('opentype'); font-weight:900; }
+  @font-face { font-family:'Minion Pro'; src:url('../../../northwoods-brand/assets/fonts/MinionPro-It.otf') format('opentype'); font-style:italic; }
+
+  :root {
+    /* Pantone-backed brand palette */
+    --blue:       #004C97;  /* Pantone 2945 — color blocks only on dark */
+    --lightblue:  #009CDE;  /* Pantone 292 — interactive */
+    --navy:       #002855;  /* Pantone 295 */
+    --gold:       #F1BE48;  /* Pantone 142 — caution */
+    --green:      #86AD3F;  /* Pantone 4212 — healthy */
+    --coral:      #FF6D6A;  /* Pantone 2345 — near limit */
+    --warmblack:  #2D2926;  /* brand black */
+    /* Warm-black surface tiers (derived from #2D2926, never pure black) */
+    --backdrop:   #141210;
+    --window:     #1B1815;
+    --panel:      #242019;
+    --raised:     #2D2926;
+    --hairline:   rgba(255,255,255,0.08);
+    --ink:        #F2EFEA;
+    --ink2:       #B8B2A9;
+    --ink3:       #7D776E;
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    background:var(--backdrop);
+    color:var(--ink);
+    font-family:'Myriad Pro', -apple-system, 'Helvetica Neue', sans-serif;
+    padding:48px 56px 80px;
+  }
+
+  /* ---------- page chrome ---------- */
+  h1 { font-weight:900; font-size:15px; letter-spacing:3px; text-transform:uppercase; }
+  h1 .dim { color:var(--ink3); }
+  .tagline { color:var(--ink2); font-size:13px; margin-top:6px; max-width:640px; line-height:1.5; }
+  .tagline em { font-family:'Minion Pro', serif; font-style:italic; color:var(--gold); }
+  section { margin-top:44px; }
+  .seclabel { font-size:10px; font-weight:900; letter-spacing:2px; text-transform:uppercase; color:var(--ink3); margin-bottom:14px; display:flex; align-items:center; gap:10px; }
+  .seclabel::after { content:''; flex:1; height:1px; background:var(--hairline); }
+  .caption { font-size:11px; color:var(--ink3); margin-top:10px; }
+  .row { display:flex; gap:28px; flex-wrap:wrap; align-items:flex-start; }
+
+  /* ---------- simulated menu bar ---------- */
+  .menubar {
+    width:660px; height:30px; border-radius:8px;
+    background:linear-gradient(180deg, #2a2724, #211e1b);
+    border:1px solid var(--hairline);
+    display:flex; align-items:center; justify-content:flex-end;
+    gap:14px; padding:0 14px; margin-bottom:8px;
+  }
+  .menubar svg.sysicon { height:13px; opacity:.8; }
+  .menubar .clock { font-size:12px; font-weight:600; color:rgba(255,255,255,.85); letter-spacing:.2px; }
+
+  /* THE capsule */
+  .capsule {
+    display:inline-flex; align-items:center; gap:5px;
+    height:19px; padding:0 7px; border-radius:10px;
+    background:var(--warmblack);
+    border:1px solid rgba(255,255,255,.25);
+  }
+  .ring { position:relative; width:13px; height:13px; }
+  .ring svg { position:absolute; inset:0; }
+  .ring .init {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:6px; font-weight:900; color:rgba(255,255,255,.78); letter-spacing:0;
+  }
+
+  /* ---------- popover ---------- */
+  .popwrap { display:flex; flex-direction:column; align-items:flex-start; }
+  .pop {
+    width:330px; border-radius:12px; overflow:hidden;
+    background:var(--panel);
+    border:1px solid var(--hairline);
+    box-shadow:0 18px 50px rgba(0,0,0,.55);
+    position:relative;
+  }
+  .pop::before { /* popover anchor arrow */
+    content:''; position:absolute; top:-6px; left:50%; transform:translateX(-50%) rotate(45deg);
+    width:12px; height:12px; background:var(--panel);
+    border-left:1px solid var(--hairline); border-top:1px solid var(--hairline);
+  }
+  .popwrap { padding-top:8px; }
+
+  .pophead {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:11px 14px 9px;
+  }
+  .pophead .title { font-size:11px; font-weight:900; letter-spacing:2px; }
+  .pophead .age { font-size:10px; color:var(--ink3); font-variant-numeric:tabular-nums; display:flex; gap:6px; align-items:center; }
+
+  /* color block device — Logic-style track header */
+  .block {
+    display:flex; align-items:center; justify-content:space-between;
+    height:27px; padding:0 14px;
+  }
+  .block .name { font-size:11px; font-weight:900; letter-spacing:1.6px; color:#fff; }
+  .block .tier { font-size:9px; font-weight:600; letter-spacing:1.2px; color:rgba(255,255,255,.72); }
+  .block.b1 { background:var(--blue); }
+  .block.b2 { background:var(--navy); }
+
+  .acct { padding:12px 14px 14px; }
+  .sessrow { display:flex; align-items:center; gap:14px; position:relative; }
+  .dial { position:relative; width:56px; height:56px; flex:none; }
+  .dial svg { position:absolute; inset:0; }
+  .dial .pct {
+    position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+    font-size:15px; font-weight:900; font-variant-numeric:tabular-nums;
+  }
+  .sessmeta .lbl { font-size:9px; font-weight:900; letter-spacing:1.8px; color:var(--ink3); }
+  .sessmeta .reset { font-size:14px; font-weight:600; font-variant-numeric:tabular-nums; margin-top:3px; }
+  .sessmeta .reset .dim { color:var(--ink3); font-weight:400; font-size:11px; }
+
+  /* pointer device — resets-next marker */
+  .pointer {
+    position:absolute; left:-14px; top:50%; transform:translateY(-50%);
+    width:0; height:0;
+    border-top:5px solid transparent; border-bottom:5px solid transparent;
+    border-left:6px solid var(--gold);
+  }
+
+  /* segmented LED meter */
+  .meter { display:flex; align-items:center; gap:8px; margin-top:9px; }
+  .meter .mlbl { width:34px; font-size:9px; font-weight:900; letter-spacing:1.6px; color:var(--ink3); }
+  .meter .segs { display:flex; gap:2px; flex:1; }
+  .meter .seg { height:7px; flex:1; border-radius:1.5px; background:rgba(255,255,255,.10); }
+  .meter .mpct { width:34px; text-align:right; font-size:11px; font-weight:600; font-variant-numeric:tabular-nums; color:var(--ink2); }
+
+  .popfoot {
+    display:flex; align-items:center; justify-content:space-between;
+    padding:9px 14px; border-top:1px solid var(--hairline);
+    font-size:10px; color:var(--ink3);
+  }
+  .gear { opacity:.6; }
+
+  /* warning strip — broadcast warning bar */
+  .strip {
+    display:flex; align-items:center; gap:8px;
+    background:var(--gold); color:var(--warmblack);
+    padding:7px 14px; font-size:10px; font-weight:900; letter-spacing:1.4px;
+  }
+  .strip .sub { font-weight:600; letter-spacing:.4px; opacity:.8; font-variant-numeric:tabular-nums; }
+  .strip.red { background:var(--coral); }
+  .strip .act { margin-left:auto; font-weight:900; letter-spacing:1.2px; text-decoration:underline; }
+
+  .stalecap { font-size:10px; color:var(--ink3); margin-top:4px; }
+
+  /* ---------- onboarding ---------- */
+  .onb { padding:30px 24px 24px; text-align:center; }
+  .onb .hero { margin:0 auto 20px; display:block; }
+  .onb h2 { font-size:20px; font-weight:900; letter-spacing:.2px; }
+  .onb p { font-size:13px; color:var(--ink2); line-height:1.55; margin:10px auto 0; max-width:250px; }
+  .btn {
+    display:inline-block; margin-top:18px;
+    background:var(--lightblue); color:var(--window);
+    font-size:13px; font-weight:600;
+    padding:9px 20px; border-radius:999px;
+  }
+  .onb .mini { font-size:10px; color:var(--ink3); margin-top:10px; }
+</style>
+</head>
+<body>
+
+<h1>CLAUDE DIALS <span class="dim">— DESIGN SKETCH V1</span></h1>
+<p class="tagline">Industrial / broadcast cockpit. <em>A usage limit is a meter, and meters are control-room language.</em>
+Twin rings in a black capsule — two Claude accounts as tally gauges: green is healthy, gold is caution, coral is near the limit.</p>
+
+<!-- ============================================================ -->
+<section>
+  <div class="seclabel">The menu bar capsule — the unforgettable thing</div>
+
+  <!-- healthy -->
+  <div class="menubar">
+    <svg class="sysicon" viewBox="0 0 16 12" fill="none"><path d="M1 4.5C3 2.2 5.4 1 8 1s5 1.2 7 3.5M3.3 7C4.6 5.6 6.2 4.8 8 4.8S11.4 5.6 12.7 7M5.6 9.4C6.3 8.7 7.1 8.3 8 8.3s1.7.4 2.4 1.1" stroke="#fff" stroke-opacity=".85" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="11" r="1" fill="#fff" fill-opacity=".85"/></svg>
+    <svg class="sysicon" viewBox="0 0 22 11"><rect x=".5" y=".5" width="18" height="10" rx="2.5" stroke="#fff" stroke-opacity=".5" fill="none"/><rect x="2" y="2" width="12" height="7" rx="1.2" fill="#fff" fill-opacity=".85"/><path d="M20.5 3.5v4c1-.3 1.5-1 1.5-2s-.5-1.7-1.5-2z" fill="#fff" fill-opacity=".5"/></svg>
+    <span class="capsule">
+      <span class="ring"><svg viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="4.8" stroke="rgba(255,255,255,.16)" stroke-width="2.2" fill="none"/><circle cx="6.5" cy="6.5" r="4.8" stroke="#86AD3F" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-dasharray="12.67 30.16" transform="rotate(-90 6.5 6.5)"/></svg><span class="init">P</span></span>
+      <span class="ring"><svg viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="4.8" stroke="rgba(255,255,255,.16)" stroke-width="2.2" fill="none"/><circle cx="6.5" cy="6.5" r="4.8" stroke="#86AD3F" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-dasharray="9.05 30.16" transform="rotate(-90 6.5 6.5)"/></svg><span class="init">N</span></span>
+    </span>
+    <span class="clock">Wed 9:41 AM</span>
+  </div>
+
+  <!-- running hot -->
+  <div class="menubar">
+    <svg class="sysicon" viewBox="0 0 16 12" fill="none"><path d="M1 4.5C3 2.2 5.4 1 8 1s5 1.2 7 3.5M3.3 7C4.6 5.6 6.2 4.8 8 4.8S11.4 5.6 12.7 7M5.6 9.4C6.3 8.7 7.1 8.3 8 8.3s1.7.4 2.4 1.1" stroke="#fff" stroke-opacity=".85" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="11" r="1" fill="#fff" fill-opacity=".85"/></svg>
+    <svg class="sysicon" viewBox="0 0 22 11"><rect x=".5" y=".5" width="18" height="10" rx="2.5" stroke="#fff" stroke-opacity=".5" fill="none"/><rect x="2" y="2" width="12" height="7" rx="1.2" fill="#fff" fill-opacity=".85"/><path d="M20.5 3.5v4c1-.3 1.5-1 1.5-2s-.5-1.7-1.5-2z" fill="#fff" fill-opacity=".5"/></svg>
+    <span class="capsule">
+      <span class="ring"><svg viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="4.8" stroke="rgba(255,255,255,.16)" stroke-width="2.2" fill="none"/><circle cx="6.5" cy="6.5" r="4.8" stroke="#F1BE48" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-dasharray="20.21 30.16" transform="rotate(-90 6.5 6.5)"/></svg><span class="init">P</span></span>
+      <span class="ring"><svg viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="4.8" stroke="rgba(255,255,255,.16)" stroke-width="2.2" fill="none"/><circle cx="6.5" cy="6.5" r="4.8" stroke="#FF6D6A" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-dasharray="26.54 30.16" transform="rotate(-90 6.5 6.5)"/></svg><span class="init">N</span></span>
+    </span>
+    <span class="clock">Wed 9:41 AM</span>
+  </div>
+
+  <!-- degraded -->
+  <div class="menubar">
+    <svg class="sysicon" viewBox="0 0 16 12" fill="none"><path d="M1 4.5C3 2.2 5.4 1 8 1s5 1.2 7 3.5M3.3 7C4.6 5.6 6.2 4.8 8 4.8S11.4 5.6 12.7 7M5.6 9.4C6.3 8.7 7.1 8.3 8 8.3s1.7.4 2.4 1.1" stroke="#fff" stroke-opacity=".85" stroke-width="1.4" stroke-linecap="round"/><circle cx="8" cy="11" r="1" fill="#fff" fill-opacity=".85"/></svg>
+    <svg class="sysicon" viewBox="0 0 22 11"><rect x=".5" y=".5" width="18" height="10" rx="2.5" stroke="#fff" stroke-opacity=".5" fill="none"/><rect x="2" y="2" width="12" height="7" rx="1.2" fill="#fff" fill-opacity=".85"/><path d="M20.5 3.5v4c1-.3 1.5-1 1.5-2s-.5-1.7-1.5-2z" fill="#fff" fill-opacity=".5"/></svg>
+    <span class="capsule">
+      <span class="ring"><svg viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="4.8" stroke="rgba(255,255,255,.16)" stroke-width="2.2" fill="none"/><circle cx="6.5" cy="6.5" r="4.8" stroke="#86AD3F" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-dasharray="12.67 30.16" transform="rotate(-90 6.5 6.5)"/></svg><span class="init">P</span></span>
+      <span class="ring"><svg viewBox="0 0 13 13"><circle cx="6.5" cy="6.5" r="4.8" stroke="rgba(255,255,255,.35)" stroke-width="1.4" fill="none" stroke-dasharray="2.5 2.5"/></svg><span class="init" style="color:rgba(255,255,255,.45)">N</span></span>
+    </span>
+    <span class="clock">Wed 9:41 AM</span>
+  </div>
+
+  <p class="caption">Top to bottom: both healthy · running hot (gold 67 % / coral 88 %) · second account disconnected (hollow dashed ring).
+  Ring fill = 5-hour session. Ring color = worst of session / week / opus, so the capsule never under-reports.</p>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <div class="seclabel">Popover — populated · onboarding · degraded</div>
+  <div class="row">
+
+    <!-- ================= populated ================= -->
+    <div class="popwrap">
+      <div class="pop">
+        <div class="pophead">
+          <span class="title">CLAUDE DIALS</span>
+          <span class="age"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M10.4 6a4.4 4.4 0 1 1-1.3-3.1M10.6 1v2.2H8.4" stroke="#7D776E" stroke-width="1.3" stroke-linecap="round"/></svg> 12 s</span>
+        </div>
+
+        <!-- account 1 — color block -->
+        <div class="block b1"><span class="name">PERSONAL</span><span class="tier">MAX 5×</span></div>
+        <div class="acct">
+          <div class="sessrow">
+            <div class="dial">
+              <svg viewBox="0 0 56 56"><circle cx="28" cy="28" r="23" stroke="rgba(255,255,255,.09)" stroke-width="5" fill="none"/><circle cx="28" cy="28" r="23" stroke="#86AD3F" stroke-width="5" fill="none" stroke-linecap="round" stroke-dasharray="60.7 144.5" transform="rotate(-90 28 28)"/></svg>
+              <span class="pct" style="color:#86AD3F">42%</span>
+            </div>
+            <div class="sessmeta">
+              <div class="lbl">SESSION</div>
+              <div class="reset">2:14:09 <span class="dim">until reset</span></div>
+            </div>
+          </div>
+          <div class="meter"><span class="mlbl">WEEK</span><span class="segs">
+            <span class="seg" style="background:#F1BE48"></span><span class="seg" style="background:#F1BE48"></span><span class="seg" style="background:#F1BE48"></span><span class="seg" style="background:#F1BE48"></span><span class="seg" style="background:#F1BE48"></span><span class="seg" style="background:#F1BE48"></span><span class="seg" style="background:#F1BE48"></span><span class="seg" style="background:#F1BE48"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span>
+          </span><span class="mpct">67%</span></div>
+          <div class="meter"><span class="mlbl">OPUS</span><span class="segs">
+            <span class="seg" style="background:#86AD3F"></span><span class="seg" style="background:#86AD3F"></span><span class="seg" style="background:#86AD3F"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span>
+          </span><span class="mpct">23%</span></div>
+        </div>
+
+        <!-- account 2 — color block -->
+        <div class="block b2"><span class="name">NORTHWOODS</span><span class="tier">MAX 5×</span></div>
+        <div class="acct">
+          <div class="sessrow">
+            <span class="pointer" title="resets next"></span>
+            <div class="dial">
+              <svg viewBox="0 0 56 56"><circle cx="28" cy="28" r="23" stroke="rgba(255,255,255,.09)" stroke-width="5" fill="none"/><circle cx="28" cy="28" r="23" stroke="#FF6D6A" stroke-width="5" fill="none" stroke-linecap="round" stroke-dasharray="127.2 144.5" transform="rotate(-90 28 28)"/></svg>
+              <span class="pct" style="color:#FF6D6A">88%</span>
+            </div>
+            <div class="sessmeta">
+              <div class="lbl">SESSION</div>
+              <div class="reset">0:41:33 <span class="dim">until reset</span></div>
+            </div>
+          </div>
+          <div class="meter"><span class="mlbl">WEEK</span><span class="segs">
+            <span class="seg" style="background:#F1BE48"></span><span class="seg" style="background:#F1BE48"></span><span class="seg" style="background:#F1BE48"></span><span class="seg" style="background:#F1BE48"></span><span class="seg" style="background:#F1BE48"></span><span class="seg" style="background:#F1BE48"></span><span class="seg" style="background:#F1BE48"></span><span class="seg" style="background:#F1BE48"></span><span class="seg" style="background:#F1BE48"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span>
+          </span><span class="mpct">74%</span></div>
+          <div class="meter"><span class="mlbl">OPUS</span><span class="segs">
+            <span class="seg" style="background:#86AD3F"></span><span class="seg" style="background:#86AD3F"></span><span class="seg" style="background:#86AD3F"></span><span class="seg" style="background:#86AD3F"></span><span class="seg" style="background:#86AD3F"></span><span class="seg" style="background:#86AD3F"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span><span class="seg"></span>
+          </span><span class="mpct">51%</span></div>
+        </div>
+
+        <div class="popfoot">
+          <span>Updated 12 s ago</span>
+          <svg class="gear" width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="2" stroke="#B8B2A9" stroke-width="1.2"/><path d="M7 1v2M7 11v2M1 7h2M11 7h2M2.8 2.8l1.4 1.4M9.8 9.8l1.4 1.4M11.2 2.8 9.8 4.2M4.2 9.8l-1.4 1.4" stroke="#B8B2A9" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </div>
+      </div>
+      <p class="caption">Populated. Color-block account headers (Pantone 2945 / 295), ring + timecode<br>countdown, segmented broadcast meters. Gold pointer ▸ marks whichever<br>window resets next.</p>
+    </div>
+
+    <!-- ================= onboarding ================= -->
+    <div class="popwrap">
+      <div class="pop">
+        <div class="onb">
+          <svg class="hero" width="150" height="58" viewBox="0 0 150 58">
+            <rect x="1.5" y="6.5" width="147" height="45" rx="22.5" fill="#2D2926" stroke="rgba(255,255,255,.22)"/>
+            <circle cx="52" cy="29" r="15" stroke="rgba(255,255,255,.12)" stroke-width="5" fill="none"/>
+            <circle cx="52" cy="29" r="15" stroke="#86AD3F" stroke-width="5" fill="none" stroke-linecap="round" stroke-dasharray="39.6 94.2" transform="rotate(-90 52 29)" filter="drop-shadow(0 0 4px rgba(134,173,63,.6))"/>
+            <text x="52" y="33" text-anchor="middle" font-family="Myriad Pro" font-weight="900" font-size="11" fill="#F2EFEA">P</text>
+            <circle cx="98" cy="29" r="15" stroke="rgba(255,255,255,.3)" stroke-width="3" fill="none" stroke-dasharray="5 5"/>
+            <text x="98" y="33" text-anchor="middle" font-family="Myriad Pro" font-weight="900" font-size="11" fill="rgba(255,255,255,.4)">N</text>
+          </svg>
+          <h2>One dial connected.</h2>
+          <p>Found your <strong>Max</strong> account from Claude Code. Connect the second account to light the other dial.</p>
+          <span class="btn">Connect second account…</span>
+          <div class="mini">One-time login · takes about a minute</div>
+        </div>
+        <div class="popfoot"><span>Skip for now — show one dial</span><span></span></div>
+      </div>
+      <p class="caption">Onboarding — the cover of the app. Composed capsule illustration,<br>one ring lit; no ContentUnavailableView in sight.</p>
+    </div>
+
+    <!-- ================= degraded ================= -->
+    <div class="popwrap">
+      <div class="pop">
+        <div class="pophead">
+          <span class="title">CLAUDE DIALS</span>
+          <span class="age"><svg width="10" height="10" viewBox="0 0 12 12" fill="none"><path d="M10.4 6a4.4 4.4 0 1 1-1.3-3.1M10.6 1v2.2H8.4" stroke="#7D776E" stroke-width="1.3" stroke-linecap="round"/></svg> 6 m</span>
+        </div>
+
+        <div class="block b1"><span class="name">PERSONAL</span><span class="tier">MAX 5×</span></div>
+        <div class="acct" style="opacity:.55">
+          <div class="sessrow">
+            <div class="dial">
+              <svg viewBox="0 0 56 56"><circle cx="28" cy="28" r="23" stroke="rgba(255,255,255,.09)" stroke-width="5" fill="none"/><circle cx="28" cy="28" r="23" stroke="#86AD3F" stroke-width="5" fill="none" stroke-linecap="round" stroke-dasharray="60.7 144.5" transform="rotate(-90 28 28)"/></svg>
+              <span class="pct" style="color:#86AD3F">42%</span>
+            </div>
+            <div class="sessmeta">
+              <div class="lbl">SESSION</div>
+              <div class="reset" style="font-size:11px; color:var(--ink3); font-weight:400">stale · last update 6 m ago</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="block b2"><span class="name">NORTHWOODS</span><span class="tier">MAX 5×</span></div>
+        <div class="acct">
+          <div class="sessrow">
+            <div class="dial">
+              <svg viewBox="0 0 56 56"><circle cx="28" cy="28" r="23" stroke="rgba(255,255,255,.28)" stroke-width="3" fill="none" stroke-dasharray="6 6"/></svg>
+              <span class="pct" style="color:var(--ink3)">—</span>
+            </div>
+            <div class="sessmeta">
+              <div class="lbl">SESSION</div>
+              <div class="reset" style="font-size:11px; color:var(--ink3); font-weight:400">no data</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="strip">ENDPOINT NOT RESPONDING <span class="sub">· retrying in 60 s</span></div>
+        <div class="strip red">TOKEN EXPIRED <span class="act">RECONNECT</span></div>
+
+        <div class="popfoot">
+          <span>Updated 6 m ago</span>
+          <svg class="gear" width="13" height="13" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="2" stroke="#B8B2A9" stroke-width="1.2"/><path d="M7 1v2M7 11v2M1 7h2M11 7h2M2.8 2.8l1.4 1.4M9.8 9.8l1.4 1.4M11.2 2.8 9.8 4.2M4.2 9.8l-1.4 1.4" stroke="#B8B2A9" stroke-width="1.2" stroke-linecap="round"/></svg>
+        </div>
+      </div>
+      <p class="caption">Degraded — both error states designed: stale data dims to last-known,<br>lost credential goes hollow. Broadcast warning strips (gold = transient,<br>coral = needs action). Shown stacked here; only one strip appears at a time.</p>
+    </div>
+
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<section>
+  <div class="seclabel">System notes</div>
+  <p class="caption" style="max-width:680px; line-height:1.7">
+    Status thresholds: green &lt; 60 % · gold 60–85 % · coral &gt; 85 %. Light blue (#009CDE) is interactive-only — never a status color.
+    Surfaces are warm-black tiers from brand black #2D2926 (no pure black). Motion: snap — rings animate 0.18 s, countdowns hard-tick,
+    nothing bounces. Fonts: Myriad Pro Regular / Semibold / Black, tabular numerals for all data.
+  </p>
+</section>
+
+</body>
+</html>

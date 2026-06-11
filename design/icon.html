@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+  html,body{margin:0;padding:0;background:transparent}
+  #icon{width:1024px;height:1024px}
+</style></head>
+<body>
+<svg id="icon" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34302B"/>
+      <stop offset="1" stop-color="#1B1815"/>
+    </linearGradient>
+    <linearGradient id="cap" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#322E2A"/>
+      <stop offset="1" stop-color="#211E1B"/>
+    </linearGradient>
+    <filter id="soft" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="6" stdDeviation="10" flood-color="#000" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <!-- macOS squircle background -->
+  <rect x="0" y="0" width="1024" height="1024" rx="228" ry="228" fill="url(#bg)"/>
+  <rect x="2" y="2" width="1020" height="1020" rx="227" ry="227" fill="none" stroke="#ffffff" stroke-opacity="0.06" stroke-width="3"/>
+
+  <!-- the capsule -->
+  <g filter="url(#soft)">
+    <rect x="168" y="372" width="688" height="280" rx="140" ry="140" fill="url(#cap)"
+          stroke="#ffffff" stroke-opacity="0.16" stroke-width="4"/>
+  </g>
+
+  <!-- ring 1 (green, ~42%) -->
+  <g transform="translate(372,512)">
+    <circle r="118" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="34"/>
+    <circle r="118" fill="none" stroke="#86AD3F" stroke-width="34" stroke-linecap="round"
+            stroke-dasharray="311 741" transform="rotate(-90)"/>
+    <text x="0" y="34" text-anchor="middle" font-family="Helvetica" font-weight="900"
+          font-size="96" fill="#F2EFEA">1</text>
+  </g>
+
+  <!-- ring 2 (gold, ~67%) -->
+  <g transform="translate(652,512)">
+    <circle r="118" fill="none" stroke="#ffffff" stroke-opacity="0.10" stroke-width="34"/>
+    <circle r="118" fill="none" stroke="#F1BE48" stroke-width="34" stroke-linecap="round"
+            stroke-dasharray="497 741" transform="rotate(-90)"/>
+    <text x="0" y="34" text-anchor="middle" font-family="Helvetica" font-weight="900"
+          font-size="96" fill="#F2EFEA">2</text>
+  </g>
+</svg>
+</body></html>

@@ -1,0 +1,53 @@
+name: ClaudeDials
+options:
+  bundleIdPrefix: com.northwoodschurch
+  deploymentTarget:
+    macOS: "15.0"
+  xcodeVersion: "16.0"
+  createIntermediateGroups: true
+  defaultConfig: Release
+
+packages:
+  Sparkle:
+    url: https://github.com/sparkle-project/Sparkle
+    from: 2.0.0
+
+settings:
+  base:
+    SWIFT_VERSION: "6.0"
+    MACOSX_DEPLOYMENT_TARGET: "15.0"
+    CODE_SIGN_IDENTITY: "-"
+    CODE_SIGN_STYLE: Manual
+
+targets:
+  ClaudeDials:
+    type: application
+    platform: macOS
+    sources:
+      - ClaudeDials
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.northwoodschurch.claudedials
+        PRODUCT_NAME: "Claude Dials"
+        MARKETING_VERSION: "1.0.0"
+        CURRENT_PROJECT_VERSION: 1
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        GENERATE_INFOPLIST_FILE: true
+        INFOPLIST_KEY_LSUIElement: true
+        INFOPLIST_KEY_CFBundleDisplayName: "Claude Dials"
+        INFOPLIST_KEY_NSHumanReadableCopyright: "Copyright 2026 Northwoods Community Church"
+        ENABLE_USER_SCRIPT_SANDBOXING: false
+        INFOPLIST_KEY_SUPublicEDKey: VIMxKZmmRokdMcHK5d3QU4+qHgBglmkVFP5aAVvxgqM=
+        INFOPLIST_KEY_SUFeedURL: https://northwoodscommunitychurch.github.io/app-updates/appcast-claudedials.xml
+    dependencies:
+      - package: Sparkle
+
+schemes:
+  ClaudeDials:
+    build:
+      targets:
+        ClaudeDials: all
+    run:
+      config: Debug
+    archive:
+      config: Release
