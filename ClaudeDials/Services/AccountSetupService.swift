@@ -48,26 +48,47 @@ enum AccountSetupService {
 
         guard let claude = claudeCLIPath() else { return false }
 
-        // Run `claude auth login` with an isolated config dir so the login writes
-        // a SEPARATE Keychain item (keyed by the config dir) instead of
-        // overwriting the default profile. `auth login` is the real CLI command —
-        // `/login` is an interactive in-session command and does not target a
-        // profile. `--claudeai` selects subscription auth (not API billing).
-        let escapedDir = dir.replacingOccurrences(of: "\"", with: "\\\"")
-        let escapedClaude = claude.replacingOccurrences(of: "\"", with: "\\\"")
-        let command = "CLAUDE_CONFIG_DIR=\"\(escapedDir)\" \"\(escapedClaude)\" auth login --claudeai"
-
-        let appleScriptSource = """
-        tell application "Terminal"
-            activate
-            do script "\(command.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\""))"
-        end tell
+        // Write a double-clickable `.command` script and open it with its default
+        // handler (Terminal). This avoids needing Apple Events (Automation)
+        // permission, which silently blocks the older "tell Terminal to do script"
+        // approach on an ad-hoc-signed app.
+        //
+        // `claude auth login` (NOT the interactive `/login`) honors
+        // CLAUDE_CONFIG_DIR and writes a SEPARATE per-profile Keychain item
+        // instead of overwriting the default profile. `--claudeai` selects
+        // subscription auth.
+        let scriptPath = (NSTemporaryDirectory() as NSString)
+            .appendingPathComponent("connect-second-claude-account.command")
+        let script = """
+        #!/bin/zsh
+        export CLAUDE_CONFIG_DIR="\(dir)"
+        clear
+        echo "────────────────────────────────────────────"
+        echo "  Claude Dials — connect your SECOND account"
+        echo "────────────────────────────────────────────"
+        echo
+        echo "A browser will open. Sign in with the account you are ADDING"
+        echo "(not the one already on your first dial). If your browser is"
+        echo "already signed in, use the account switcher or a private window."
+        echo
+        "\(claude)" auth login --claudeai
+        echo
+        echo "Done — you can close this window. The second dial lights up shortly."
         """
+        do {
+            try script.write(toFile: scriptPath, atomically: true, encoding: .utf8)
+            try FileManager.default.setAttributes(
+                [.posixPermissions: 0o755], ofItemAtPath: scriptPath
+            )
+        } catch {
+            NSLog("Claude Dials: failed to write connect script: \(error)")
+            return false
+        }
 
-        if let script = NSAppleScript(source: appleScriptSource) {
-            var error: NSDictionary?
-            script.executeAndReturnError(&error)
-            if let error { NSLog("Claude Dials: login launch error \(error)") }
+        // Opening a .command file launches Terminal to run it — no Apple Events.
+        if !NSWorkspace.shared.open(URL(fileURLWithPath: scriptPath)) {
+            NSLog("Claude Dials: NSWorkspace failed to open connect script")
+            return false
         }
         return true
     }
