@@ -65,10 +65,17 @@ enum KeychainReader {
         return try parse(data)
     }
 
-    /// Returns true if a Keychain item exists for this account (without reading the
-    /// secret — useful for discovery without provoking the access prompt twice).
+    /// Returns true if a Keychain item exists for this account. Checks *existence
+    /// only* (no secret data requested), so it never triggers the access prompt —
+    /// important for launch-time discovery, which must not block on a dialog.
     static func hasCredential(forConfigDir configDir: String?) -> Bool {
-        (try? rawData(service: serviceName(forConfigDir: configDir))) != nil
+        let query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: serviceName(forConfigDir: configDir),
+            kSecMatchLimit as String: kSecMatchLimitOne,
+        ]
+        var item: CFTypeRef?
+        return SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess
     }
 
     // MARK: - Private

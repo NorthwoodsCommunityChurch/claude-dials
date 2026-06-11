@@ -28,13 +28,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         if DiagnosticDump.isEnabled {
             Task {
-                // Wait for at least one account to leave the .loading seed state.
+                // Wait for ALL accounts to leave the .loading seed state.
                 for _ in 0..<40 {
                     await monitor.refresh()
-                    let settled = monitor.snapshots.contains {
+                    let allSettled = !monitor.snapshots.isEmpty && monitor.snapshots.allSatisfy {
                         if case .loading = $0.state { return false } else { return true }
                     }
-                    if settled { break }
+                    if allSettled { break }
                     try? await Task.sleep(for: .milliseconds(300))
                 }
                 DiagnosticDump.run(monitor: monitor)

@@ -1,58 +1,32 @@
 import Foundation
 
-/// Resolves an account's identity (email / org) by running `claude auth status
-/// --json` against the account's config dir. Used to label dials by who they
-/// belong to rather than "Account 1 / 2".
+/// Resolves an account's identity (email / org) by reading the `oauthAccount`
+/// block from the profile's `.claude.json` — the default profile uses
+/// `~/.claude.json`, a `CLAUDE_CONFIG_DIR` profile uses `<configDir>/.claude.json`.
 ///
-/// Subprocess rather than an API call because the email isn't in the Keychain
-/// credential or the usage response — `claude auth status` is the reliable
-/// source, and the `claude` subprocess uses its own Keychain access (no prompt).
+/// Reads the file directly rather than shelling out to `claude auth status`:
+/// launching the full Claude CLI as a subprocess does heavy startup work and can
+/// hang a refresh. A plain file read is instant and can't block.
 enum AccountIdentityResolver {
 
-    /// Runs off the main actor (blocking subprocess). Returns nil if the CLI is
-    /// missing, the account isn't logged in, or output can't be parsed.
     static func resolve(configDir: String?) -> AccountIdentity? {
-        guard let claude = cliPath() else { return nil }
-
-        let process = Process()
-        process.executableURL = URL(fileURLWithPath: claude)
-        process.arguments = ["auth", "status", "--json"]
-        var env = ProcessInfo.processInfo.environment
+        let base: String
         if let configDir, !configDir.isEmpty {
-            env["CLAUDE_CONFIG_DIR"] = (configDir as NSString).expandingTildeInPath
+            base = (configDir as NSString).expandingTildeInPath
+        } else {
+            base = NSHomeDirectory()
         }
-        process.environment = env
+        let path = (base as NSString).appendingPathComponent(".claude.json")
 
-        let out = Pipe()
-        process.standardOutput = out
-        process.standardError = Pipe()
-
-        do {
-            try process.run()
-        } catch {
-            return nil
-        }
-        let data = out.fileHandleForReading.readDataToEndOfFile()
-        process.waitUntilExit()
-
-        guard let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-              (root["loggedIn"] as? Bool) == true else {
+        guard let data = FileManager.default.contents(atPath: path),
+              let root = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let oauth = root["oauthAccount"] as? [String: Any] else {
             return nil
         }
         return AccountIdentity(
-            email: root["email"] as? String,
-            orgName: root["orgName"] as? String,
-            subscriptionType: root["subscriptionType"] as? String
+            email: oauth["emailAddress"] as? String,
+            orgName: oauth["organizationName"] as? String,
+            subscriptionType: oauth["organizationType"] as? String
         )
-    }
-
-    private static func cliPath() -> String? {
-        let candidates = [
-            "\(NSHomeDirectory())/.local/bin/claude",
-            "/opt/homebrew/bin/claude",
-            "/usr/local/bin/claude",
-            "\(NSHomeDirectory())/.claude/local/claude",
-        ]
-        return candidates.first { FileManager.default.isExecutableFile(atPath: $0) }
     }
 }

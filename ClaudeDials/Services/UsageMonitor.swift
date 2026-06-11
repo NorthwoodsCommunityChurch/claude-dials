@@ -26,6 +26,7 @@ final class UsageMonitor: ObservableObject {
 
     /// Re-reads the persisted account list and resets snapshots for any new accounts.
     func reloadConfig() {
+        discoverSecondAccountIfPresent()
         let config = ConfigStore.shared.config
         accounts = config.accounts
         pollInterval = config.pollInterval
@@ -41,6 +42,17 @@ final class UsageMonitor: ObservableObject {
         }
         snapshots = rebuilt
         restartTimer()
+    }
+
+    /// Self-healing: if the dedicated second-account profile has a logged-in
+    /// credential but isn't in the account list (e.g. settings were reset, or the
+    /// connect flow's registration didn't land), register it automatically.
+    private func discoverSecondAccountIfPresent() {
+        let dir = AccountSetupService.secondConfigDir
+        guard KeychainReader.hasCredential(forConfigDir: dir) else { return }
+        let already = ConfigStore.shared.config.accounts.contains { $0.configDir == dir }
+        guard !already else { return }
+        ConfigStore.shared.addAccount(Account(label: "Account 2", configDir: dir))
     }
 
     func start() {
