@@ -65,7 +65,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     private func redraw() {
         guard let button = statusItem.button else { return }
         let rings: [RingSpec] = monitor.snapshots.enumerated().map { index, snap in
-            let initial = monitor.account(for: snap.id)?.label.first.map(String.init)?.uppercased() ?? "\(index + 1)"
+            let initial = monitor.displayLabel(for: snap.id).first.map { String($0).uppercased() } ?? "\(index + 1)"
             switch snap.state {
             case .disconnected, .tokenExpired:
                 return RingSpec(fraction: 0, color: .gray, initial: initial, connected: false)

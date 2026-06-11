@@ -16,7 +16,7 @@ enum DiagnosticDump {
 
         // Capsule (menu-bar) icon from current snapshots.
         let rings: [RingSpec] = monitor.snapshots.enumerated().map { i, snap in
-            let initial = monitor.account(for: snap.id)?.label.first.map { String($0).uppercased() } ?? "\(i+1)"
+            let initial = monitor.displayLabel(for: snap.id).first.map { String($0).uppercased() } ?? "\(i+1)"
             if !snap.state.isConnected {
                 return RingSpec(fraction: 0, color: .gray, initial: initial, connected: false)
             }

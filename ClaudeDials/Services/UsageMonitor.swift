@@ -10,6 +10,8 @@ final class UsageMonitor: ObservableObject {
     @Published private(set) var snapshots: [AccountSnapshot] = []
     @Published private(set) var isRefreshing = false
     @Published private(set) var lastRefresh: Date?
+    /// Resolved identities (email/org → friendly name), cached per account.
+    @Published private(set) var identities: [UUID: AccountIdentity] = [:]
 
     /// Called after every refresh so the menu-bar capsule can redraw.
     var onUpdate: (() -> Void)?
@@ -72,6 +74,20 @@ final class UsageMonitor: ObservableObject {
         accounts.firstIndex { $0.id == id } ?? 0
     }
 
+    /// The label to show for an account: a manual (non-generic) label wins;
+    /// otherwise the email-derived name ("Personal" / "Northwoods"); else the
+    /// stored label.
+    func displayLabel(for id: UUID) -> String {
+        let stored = account(for: id)?.label ?? "Account"
+        if !Self.isGenericLabel(stored) { return stored }
+        return identities[id]?.displayName ?? stored
+    }
+
+    private static func isGenericLabel(_ label: String) -> Bool {
+        label.range(of: #"^Account \d+$"#, options: .regularExpression) != nil
+            || label.trimmingCharacters(in: .whitespaces).isEmpty
+    }
+
     // MARK: - Refresh
 
     func refresh() async {
@@ -79,10 +95,12 @@ final class UsageMonitor: ObservableObject {
         isRefreshing = true
         defer { isRefreshing = false }
 
+        let cachedIdentities = identities
         await withTaskGroup(of: FetchResult.self) { group in
             for account in accounts {
+                let cached = cachedIdentities[account.id]
                 group.addTask { [account] in
-                    await Self.fetchState(for: account)
+                    await Self.fetchState(for: account, cachedIdentity: cached)
                 }
             }
             for await result in group {
@@ -113,38 +131,61 @@ final class UsageMonitor: ObservableObject {
             lastUpdated: didSucceed ? Date() : previous.lastUpdated,
             tier: result.tier ?? previous.tier
         )
+
+        // Cache the resolved identity and, if the account still has a generic
+        // label, persist the email-derived name so Settings shows it too.
+        if let identity = result.identity {
+            identities[result.id] = identity
+            if let name = identity.displayName,
+               var account = account(for: result.id),
+               Self.isGenericLabel(account.label) {
+                account.label = name
+                if let i = accounts.firstIndex(where: { $0.id == account.id }) {
+                    accounts[i] = account
+                }
+                ConfigStore.shared.updateAccount(account)
+            }
+        }
     }
 
     private struct FetchResult {
         let id: UUID
         let state: AccountState
         let tier: String?
+        let identity: AccountIdentity?
     }
 
     /// Reads the Keychain and hits the endpoint for one account, mapping every
-    /// failure to a designed degraded state. Runs off the main actor.
-    private nonisolated static func fetchState(for account: Account) async -> FetchResult {
+    /// failure to a designed degraded state. Runs off the main actor. Resolves the
+    /// account identity only when not already cached (it requires a subprocess).
+    private nonisolated static func fetchState(
+        for account: Account,
+        cachedIdentity: AccountIdentity?
+    ) async -> FetchResult {
         let credential: ClaudeCredential
         do {
             credential = try KeychainReader.credential(forConfigDir: account.configDir)
         } catch {
-            return FetchResult(id: account.id, state: .disconnected, tier: nil)
+            return FetchResult(id: account.id, state: .disconnected, tier: nil, identity: cachedIdentity)
         }
+
+        // Resolve identity once (subprocess); reuse the cache on later polls.
+        let identity = cachedIdentity ?? AccountIdentityResolver.resolve(configDir: account.configDir)
 
         let tier = credential.tierBadge
         if credential.isExpired {
-            return FetchResult(id: account.id, state: .tokenExpired, tier: tier)
+            return FetchResult(id: account.id, state: .tokenExpired, tier: tier, identity: identity)
         }
 
         do {
             let usage = try await UsageClient.fetchUsage(using: credential)
-            return FetchResult(id: account.id, state: .ok(usage), tier: tier)
+            return FetchResult(id: account.id, state: .ok(usage), tier: tier, identity: identity)
         } catch UsageClient.ClientError.tokenExpired,
                 UsageClient.ClientError.unauthorized {
-            return FetchResult(id: account.id, state: .tokenExpired, tier: tier)
+            return FetchResult(id: account.id, state: .tokenExpired, tier: tier, identity: identity)
         } catch {
             // Rate-limited, server error, transport, or schema drift: keep last data.
-            return FetchResult(id: account.id, state: .endpointDown(lastKnown: nil), tier: tier)
+            return FetchResult(id: account.id, state: .endpointDown(lastKnown: nil), tier: tier, identity: identity)
         }
     }
 }

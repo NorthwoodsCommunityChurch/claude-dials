@@ -43,6 +43,7 @@ struct PopoverView: View {
                         accountIndex: monitor.index(of: snapshot.id),
                         resetsNext: resetsNextID == snapshot.id,
                         tierBadge: snapshot.tier ?? "CLAUDE",
+                        displayLabel: monitor.displayLabel(for: snapshot.id),
                         onReconnect: { onReconnect(snapshot.id) }
                     )
                 }

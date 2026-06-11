@@ -10,6 +10,8 @@ struct AccountSectionView: View {
     let accountIndex: Int
     let resetsNext: Bool
     let tierBadge: String
+    /// Resolved, email-derived label ("Personal" / "Northwoods").
+    let displayLabel: String
     var onReconnect: () -> Void = {}
 
     private var usage: AccountUsage? { snapshot.state.usage }
@@ -17,7 +19,7 @@ struct AccountSectionView: View {
     var body: some View {
         VStack(spacing: 0) {
             ColorBlockHeader(
-                name: account.label,
+                name: displayLabel,
                 tier: tierBadge,
                 color: Theme.blockColor(forAccountIndex: accountIndex)
             )
