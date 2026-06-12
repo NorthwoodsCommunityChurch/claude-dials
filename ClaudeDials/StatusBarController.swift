@@ -64,26 +64,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
 
     private func redraw() {
         guard let button = statusItem.button else { return }
-        let rings: [RingSpec] = monitor.snapshots.enumerated().map { index, snap in
-            let initial = monitor.displayLabel(for: snap.id).first.map { String($0).uppercased() } ?? "\(index + 1)"
-            switch snap.state {
-            case .disconnected, .tokenExpired:
-                return RingSpec(fraction: 0, color: .gray, initial: initial, connected: false)
-            case .loading:
-                return RingSpec(fraction: 0, color: NSColor(hex: 0x86AD3F), initial: initial, connected: true)
-            default:
-                let worst = snap.state.usage?.worstUtilization ?? 0
-                return RingSpec(
-                    fraction: worst / 100,
-                    color: Theme.Status.nsColor(for: worst),
-                    initial: initial,
-                    connected: true
-                )
-            }
-        }
-        button.image = CapsuleStatusIcon.make(rings: rings.isEmpty
-            ? [RingSpec(fraction: 0, color: .gray, initial: "1", connected: false)]
-            : rings)
+        button.image = CapsuleStatusIcon.make(rings: CapsuleStatusIcon.rings(from: monitor))
     }
 
     // MARK: - Clicks

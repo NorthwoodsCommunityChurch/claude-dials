@@ -14,17 +14,8 @@ enum DiagnosticDump {
     static func run(monitor: UsageMonitor) {
         let dir = ProcessInfo.processInfo.environment["CLAUDEDIALS_DUMP"] ?? "/tmp"
 
-        // Capsule (menu-bar) icon from current snapshots.
-        let rings: [RingSpec] = monitor.snapshots.enumerated().map { i, snap in
-            let initial = monitor.displayLabel(for: snap.id).first.map { String($0).uppercased() } ?? "\(i+1)"
-            if !snap.state.isConnected {
-                return RingSpec(fraction: 0, color: .gray, initial: initial, connected: false)
-            }
-            let worst = snap.state.usage?.worstUtilization ?? 0
-            return RingSpec(fraction: worst/100, color: Theme.Status.nsColor(for: worst), initial: initial, connected: true)
-        }
-        let capsule = CapsuleStatusIcon.make(rings: rings.isEmpty
-            ? [RingSpec(fraction: 0, color: .gray, initial: "1", connected: false)] : rings)
+        // Capsule (menu-bar) icon — same builder the live status item uses.
+        let capsule = CapsuleStatusIcon.make(rings: CapsuleStatusIcon.rings(from: monitor))
         writePNG(capsule, to: "\(dir)/claudedials_capsule.png", scale: 6)
 
         // Popover at real size.

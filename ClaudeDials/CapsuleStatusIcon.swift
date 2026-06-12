@@ -15,11 +15,39 @@ struct RingSpec {
 /// glance. Redrawn whenever usage changes.
 enum CapsuleStatusIcon {
 
+    /// Builds the ring specs for the current snapshots. Shared by the live
+    /// status item and the diagnostic dump so the two can never drift apart.
+    /// The fraction is the SESSION (5-hour) utilization — the same number as
+    /// the popover's big dial; the weekly windows live in the popover's meters.
+    @MainActor
+    static func rings(from monitor: UsageMonitor) -> [RingSpec] {
+        let specs: [RingSpec] = monitor.snapshots.enumerated().map { index, snap in
+            let initial = monitor.displayLabel(for: snap.id).first.map { String($0).uppercased() } ?? "\(index + 1)"
+            switch snap.state {
+            case .disconnected, .tokenExpired:
+                return RingSpec(fraction: 0, color: .gray, initial: initial, connected: false)
+            case .loading:
+                return RingSpec(fraction: 0, color: NSColor(hex: 0x86AD3F), initial: initial, connected: true)
+            default:
+                let session = snap.state.usage?.session?.utilization ?? 0
+                return RingSpec(
+                    fraction: session / 100,
+                    color: Theme.Status.nsColor(for: session),
+                    initial: initial,
+                    connected: true
+                )
+            }
+        }
+        return specs.isEmpty
+            ? [RingSpec(fraction: 0, color: .gray, initial: "1", connected: false)]
+            : specs
+    }
+
     static func make(rings: [RingSpec]) -> NSImage {
-        let ringD: CGFloat = 13
+        let ringD: CGFloat = 16
         let ringGap: CGFloat = 5
-        let padX: CGFloat = 7
-        let height: CGFloat = 18
+        let padX: CGFloat = 6
+        let height: CGFloat = 21
         let count = max(rings.count, 1)
         let width = padX * 2 + CGFloat(count) * ringD + CGFloat(count - 1) * ringGap
 
@@ -50,16 +78,16 @@ enum CapsuleStatusIcon {
     }
 
     private static func drawRing(_ ring: RingSpec, centerX cx: CGFloat, centerY cy: CGFloat, diameter: CGFloat) {
-        let lineWidth: CGFloat = 2.2
+        let lineWidth: CGFloat = 2.6
         let radius = (diameter - lineWidth) / 2
         let center = NSPoint(x: cx, y: cy)
 
         if !ring.connected {
             let path = NSBezierPath()
             path.appendArc(withCenter: center, radius: radius, startAngle: 0, endAngle: 360)
-            path.lineWidth = 1.4
+            path.lineWidth = 1.6
             NSColor.white.withAlphaComponent(0.35).setStroke()
-            let pattern: [CGFloat] = [2.2, 2.2]
+            let pattern: [CGFloat] = [2.6, 2.6]
             path.setLineDash(pattern, count: 2, phase: 0)
             path.stroke()
             drawInitial(ring.initial, at: center, color: NSColor.white.withAlphaComponent(0.45))
@@ -91,7 +119,7 @@ enum CapsuleStatusIcon {
 
     private static func drawInitial(_ text: String, at center: NSPoint, color: NSColor) {
         guard !text.isEmpty else { return }
-        let font = NSFont(name: "MyriadPro-Black", size: 6) ?? NSFont.systemFont(ofSize: 6, weight: .black)
+        let font = NSFont(name: "MyriadPro-Black", size: 7.5) ?? NSFont.systemFont(ofSize: 7.5, weight: .black)
         let attrs: [NSAttributedString.Key: Any] = [.font: font, .foregroundColor: color]
         let str = NSAttributedString(string: text, attributes: attrs)
         let size = str.size()
