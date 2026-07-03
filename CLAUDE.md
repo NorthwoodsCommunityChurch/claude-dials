@@ -12,10 +12,19 @@ menu-bar-only (`LSUIElement`), built with xcodegen. No third-party deps besides 
 ---
 
 ## Status — 2026-07-03
-- **Stage:** built, verified locally (clean Release build). GitHub repo
-  `NorthwoodsCommunityChurch/claude-dials` exists; **not yet released** (no v1.0.0 tag / appcast
-  yet). The big 2026-06-16 single-account refactor + the 2026-06-22 signing fix + the 2026-07-03
-  usage-schema fix are being checkpointed now (first push since `b173cf8`).
+- **Stage:** **released — v1.0.0 is live.** Built, verified locally (clean Release build), and
+  shipped as this repo's first-ever GitHub release: `appcast-claudedials.xml` is created and
+  serving on GitHub Pages, so the app now auto-updates via Sparkle like every other Northwoods
+  app. The big 2026-06-16 single-account refactor + the 2026-06-22 signing fix + the 2026-07-03
+  usage-schema fix were checkpointed and released together (first push since `b173cf8`).
+- **2026-07-03 — repo made public to enable Sparkle.** Sparkle's update check is a plain
+  unauthenticated HTTPS GET — a private repo's release assets 404 for it. Every other Northwoods
+  Sparkle app (Junk Drawer, Synaxis, Whisper Verses, Canopy, etc.) is a public repo; none had ever
+  combined "private repo" with "Sparkle auto-update" before this project. Aaron chose public over
+  skipping Sparkle. The ToS caveat below is about the *technique* (reading Claude Code's OAuth
+  token, hitting an unofficial endpoint) being more visible now, not about any leaked secret — the
+  security review before release found none in the repo, and the token itself is read from the
+  local user's own Keychain at runtime, never embedded in code.
 - **Works:** single-account model — reads the **default Claude Code login** credential from the
   Keychain and the live `/api/oauth/usage` endpoint (verified HTTP 200, real utilization);
   single-ring capsule menu-bar icon; popover with a color-block header whose **name is resolved
@@ -51,15 +60,17 @@ menu-bar-only (`LSUIElement`), built with xcodegen. No third-party deps besides 
   ad-hoc signing has no stable identity. Now `build.sh` re-signs the bundle (Sparkle inside-out)
   with the Apple Development cert → one "Always Allow" sticks across rebuilds/copies. See the
   signing gotcha below.
-- **Next:** cut v1.0.0, create `appcast-claudedials.xml`. App icon + all repo-standard files are
-  done. (Note: the released zip is still ad-hoc signed per the org distribution flow; the
-  Apple Development cert is for *local* rebuild stability, not distribution.)
+- **Next:** nothing pending. Future releases follow the standard bump → build → ad-hoc sign →
+  zip → GitHub release → sign downloaded zip → update appcast flow (SPARKLE-GUIDE.md). The
+  released zip is ad-hoc signed per the org distribution flow — the Apple Development cert
+  `build.sh` uses is for *local* rebuild stability only, never for distribution.
 
-> ⚠️ **ToS caveat (load-bearing — discuss before public release):** reading the subscription
-> OAuth token and calling `/api/oauth/usage` is, per Anthropic's Feb 2026 Consumer ToS, "not
-> permitted" for third-party tools. Aaron opted in knowingly for internal use. Recommend the
-> GitHub repo be **private**. The endpoint is also unofficial and can break anytime — every
-> failure is handled as a designed degraded state, not a crash.
+> ⚠️ **ToS note:** reading the subscription OAuth token and calling `/api/oauth/usage` is, per
+> Anthropic's Feb 2026 Consumer ToS, "not permitted" for third-party tools. Aaron opted in
+> knowingly for internal use. The repo is **public** (required for Sparkle's unauthenticated
+> download to work — see 2026-07-03 above); no secrets live in it. The endpoint is also
+> unofficial and can break anytime — every failure is handled as a designed degraded state,
+> never a crash.
 
 ## What it does
 Menu-bar-only app. Places one `NSStatusItem` drawn as a warm-black capsule containing a single
@@ -109,10 +120,10 @@ ClaudeDials/
 | Thing | Value |
 |---|---|
 | Type / stack | macOS Swift (AppKit + SwiftUI + Sparkle), menu-bar-only (`LSUIElement`) |
-| GitHub repo | `NorthwoodsCommunityChurch/claude-dials` |
+| GitHub repo | `NorthwoodsCommunityChurch/claude-dials` (public, since 2026-07-03 — required for Sparkle) |
 | Bundle ID | `com.northwoodschurch.claudedials` |
-| Current version | 1.0.0 (build 1) — unreleased |
-| Update feed (Sparkle) | `https://northwoodscommunitychurch.github.io/app-updates/appcast-claudedials.xml` (not created yet) |
+| Current version | 1.0.0 (build 1) — released 2026-07-03 |
+| Update feed (Sparkle) | `https://northwoodscommunitychurch.github.io/app-updates/appcast-claudedials.xml` (live) |
 | Sparkle public key | `VIMxKZmmRokdMcHK5d3QU4+qHgBglmkVFP5aAVvxgqM=` (org key; private key in OneDrive) |
 | Deployment target | macOS 15.0 · Xcode 16 · Swift 6.0 · Apple Silicon |
 
@@ -207,3 +218,4 @@ End a work session with **`/save`**.
 | 2026-06-16 | Collapsed two accounts → one (the default Claude Code login). Removed AccountSetupService, TokenRefresher, ConnectAccountView, OnboardingView + all connect UI; name now resolves live from `~/.claude.json` instead of a frozen stored label; Keychain access is read-only (no more write prompts); old 2-account configs auto-collapse on launch. |
 | 2026-06-22 | Stable-signing fix for the repeating Keychain prompt: added `build.sh` (re-signs with the Apple Development cert so "Always Allow" sticks across rebuilds); switched build command to `./build.sh`; documented the signing gotcha. Synced README/DESIGN to the single-account model (both still described two accounts). |
 | 2026-07-03 | Fixed usage-endpoint schema drift: `seven_day_opus` is now always `null`, replaced by a dynamic `limits[]` array (currently scoping **Fable**, not Opus, on this account). Added `ModelWeeklyLimit`; `UsageClient`/`AccountSectionView` now render whatever model(s) the API actually scopes instead of a hardcoded Opus meter. Fixed a real bug: capsule ring color was session-only, ignoring `worstUtilization` — now correctly worst-window. Diagnosed the recurring Keychain prompt: the June 22 fix is confirmed working (one valid identity-based ACL grant + harmless dead entries from old ad-hoc builds); remaining prompts happen on `claude login` account switches (expected, outside Claude Dials' control) plus an occasional unreproduced "random" case still open. |
+| 2026-07-03 | **Shipped v1.0.0 — first release.** Made the repo public (was private) so Sparkle's unauthenticated download works, matching every other Northwoods Sparkle app; security-reviewed clean beforehand (no secrets in repo). Built + ad-hoc signed a distribution copy (separate from the locally dev-cert-signed daily-use copy), created the `v1.0.0` GitHub release, signed the downloaded zip, and created `appcast-claudedials.xml` in `app-updates` (this app's first appcast). |
