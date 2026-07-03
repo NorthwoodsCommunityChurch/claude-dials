@@ -34,7 +34,7 @@ menu-bar-only (`LSUIElement`), built with xcodegen. No third-party deps besides 
   (to trust `/usr/bin/security` once), then silent forever. This also makes the app's own signature
   irrelevant to keychain access, so `build.sh`'s stable-signing is no longer load-bearing for the
   prompt (kept anyway — it's still the build script and gives a stable identity for other uses).
-  **Not yet shipped** — code committed, pending a v1.0.1 release decision.
+  **Shipped in v1.0.1** (build 2), released 2026-07-03 via the normal Sparkle flow.
 - **2026-07-03 — repo made public to enable Sparkle.** Sparkle's update check is a plain
   unauthenticated HTTPS GET — a private repo's release assets 404 for it. Every other Northwoods
   Sparkle app (Junk Drawer, Synaxis, Whisper Verses, Canopy, etc.) is a public repo; none had ever
@@ -140,7 +140,7 @@ ClaudeDials/
 | Type / stack | macOS Swift (AppKit + SwiftUI + Sparkle), menu-bar-only (`LSUIElement`) |
 | GitHub repo | `NorthwoodsCommunityChurch/claude-dials` (public, since 2026-07-03 — required for Sparkle) |
 | Bundle ID | `com.northwoodschurch.claudedials` |
-| Current version | 1.0.0 (build 1) — released 2026-07-03 |
+| Current version | 1.0.1 (build 2) — released 2026-07-03 (Keychain-prompt fix) |
 | Update feed (Sparkle) | `https://northwoodscommunitychurch.github.io/app-updates/appcast-claudedials.xml` (live) |
 | Sparkle public key | `VIMxKZmmRokdMcHK5d3QU4+qHgBglmkVFP5aAVvxgqM=` (org key; private key in OneDrive) |
 | Deployment target | macOS 15.0 · Xcode 16 · Swift 6.0 · Apple Silicon |
@@ -248,4 +248,5 @@ End a work session with **`/save`**.
 | 2026-06-22 | Stable-signing fix for the repeating Keychain prompt: added `build.sh` (re-signs with the Apple Development cert so "Always Allow" sticks across rebuilds); switched build command to `./build.sh`; documented the signing gotcha. Synced README/DESIGN to the single-account model (both still described two accounts). |
 | 2026-07-03 | Fixed usage-endpoint schema drift: `seven_day_opus` is now always `null`, replaced by a dynamic `limits[]` array (currently scoping **Fable**, not Opus, on this account). Added `ModelWeeklyLimit`; `UsageClient`/`AccountSectionView` now render whatever model(s) the API actually scopes instead of a hardcoded Opus meter. Fixed a real bug: capsule ring color was session-only, ignoring `worstUtilization` — now correctly worst-window. Diagnosed the recurring Keychain prompt: the June 22 fix is confirmed working (one valid identity-based ACL grant + harmless dead entries from old ad-hoc builds); remaining prompts happen on `claude login` account switches (expected, outside Claude Dials' control) plus an occasional unreproduced "random" case still open. |
 | 2026-07-03 | **Shipped v1.0.0 — first release.** Made the repo public (was private) so Sparkle's unauthenticated download works, matching every other Northwoods Sparkle app; security-reviewed clean beforehand (no secrets in repo). Built + ad-hoc signed a distribution copy (separate from the locally dev-cert-signed daily-use copy), created the `v1.0.0` GitHub release, signed the downloaded zip, and created `appcast-claudedials.xml` in `app-updates` (this app's first appcast). |
-| 2026-07-03 | **Root-caused & fixed the recurring Keychain prompt.** Not a signing issue — Claude Code resets the credential item's *partition list* on every token refresh, dropping Claude Dials' `teamid` partition and forcing a fresh "Always Allow". `KeychainReader` now reads via `/usr/bin/security` (inherits the stable `apple-tool:` partition Claude Code preserves) instead of in-process `SecItemCopyMatching`. Verified silent read in the previously-prompting state. Corrected the CLAUDE.md gotchas that had blamed signing/account-switches. Pending a v1.0.1 release. |
+| 2026-07-03 | **Root-caused & fixed the recurring Keychain prompt.** Not a signing issue — Claude Code resets the credential item's *partition list* on every token refresh, dropping Claude Dials' `teamid` partition and forcing a fresh "Always Allow". `KeychainReader` now reads via `/usr/bin/security` (inherits the stable `apple-tool:` partition Claude Code preserves) instead of in-process `SecItemCopyMatching`. Verified silent read in the previously-prompting state. Corrected the CLAUDE.md gotchas that had blamed signing/account-switches. |
+| 2026-07-03 | **Shipped v1.0.1 (build 2)** — the Keychain-prompt fix above, released via the normal Sparkle flow (bump → build → ad-hoc sign → GitHub release → sign downloaded zip → appcast). Sparkle signing key was read from the login Keychain (service `https://sparkle-project.org`, acct `ed25519`) via `/usr/bin/security` since the `~/.sparkle` export had been cleaned up after v1.0.0. |
