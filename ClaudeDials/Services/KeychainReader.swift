@@ -39,8 +39,13 @@ enum KeychainError: Error {
 ///
 /// Claude Dials watches the *default* Claude Code login only, stored under the
 /// service name `"Claude Code-credentials"` (decompiled from Claude Code). We
-/// only ever read — never write — so we never take ownership of the item or
-/// trigger a "modify" prompt; the user grants read access once ("Always Allow").
+/// only ever read — never write.
+///
+/// The read is done by shelling out to `/usr/bin/security`, NOT by calling
+/// `SecItemCopyMatching` in-process. See `rawData()` for the full reasoning; the
+/// short version is that it's the only way to avoid a recurring "Always Allow"
+/// prompt, because Claude Code resets the item's partition list on every token
+/// refresh and `/usr/bin/security` sits in the one partition those writes keep.
 enum KeychainReader {
 
     private static let service = "Claude Code-credentials"
@@ -53,24 +58,51 @@ enum KeychainReader {
 
     // MARK: - Private
 
+    /// Reads the raw credential blob via `/usr/bin/security` instead of an
+    /// in-process `SecItemCopyMatching`.
+    ///
+    /// Why the subprocess (verified 2026-07-03): macOS gates a *silent* keychain
+    /// read on TWO things — the caller must be in the item's trusted-application
+    /// ACL **and** its code-signing partition must be in the item's partition
+    /// list. Claude Code owns this item and rewrites it on every token refresh,
+    /// which resets the partition list and drops Claude Dials' own
+    /// `teamid:TQ6Y49W7UW` partition. So an in-process read goes silent right
+    /// after an "Always Allow", then re-prompts at Claude Code's next refresh —
+    /// this was the "random" recurring prompt. `/usr/bin/security` lives in the
+    /// `apple-tool:` partition, which is exactly the partition Claude Code's
+    /// writes *preserve*, so reading through it stays silent across refreshes.
+    /// The secret only ever crosses the child's stdout — never a command-line
+    /// argument (nothing here is sensitive: service name + flags only).
     private static func rawData() throws -> Data {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: service,
-            kSecReturnData as String: true,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        var item: CFTypeRef?
-        let status = SecItemCopyMatching(query as CFDictionary, &item)
-        switch status {
-        case errSecSuccess:
-            guard let data = item as? Data else { throw KeychainError.malformed }
-            return data
-        case errSecItemNotFound:
-            throw KeychainError.notFound
-        default:
-            throw KeychainError.unreadable(status)
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/security")
+        process.arguments = ["find-generic-password", "-w", "-s", service]
+
+        let stdout = Pipe()
+        process.standardOutput = stdout
+        process.standardError = Pipe()   // swallow "could not be found" chatter
+
+        do {
+            try process.run()
+        } catch {
+            throw KeychainError.unreadable(-1)
         }
+        // Read to EOF before waiting, so a full pipe buffer can't deadlock the child.
+        let data = stdout.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
+
+        // `security` exits 44 (errSecItemNotFound) when the user isn't logged in.
+        guard process.terminationStatus == 0 else { throw KeychainError.notFound }
+
+        // `-w` prints the secret as text with a trailing newline; trim it so the
+        // JSON parser sees clean bytes.
+        guard
+            let text = String(data: data, encoding: .utf8)?
+                .trimmingCharacters(in: .whitespacesAndNewlines),
+            !text.isEmpty,
+            let clean = text.data(using: .utf8)
+        else { throw KeychainError.malformed }
+        return clean
     }
 
     private static func parse(_ data: Data) throws -> ClaudeCredential {

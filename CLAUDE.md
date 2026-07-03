@@ -17,6 +17,24 @@ menu-bar-only (`LSUIElement`), built with xcodegen. No third-party deps besides 
   serving on GitHub Pages, so the app now auto-updates via Sparkle like every other Northwoods
   app. The big 2026-06-16 single-account refactor + the 2026-06-22 signing fix + the 2026-07-03
   usage-schema fix were checkpointed and released together (first push since `b173cf8`).
+- **2026-07-03 (later) — recurring Keychain prompt ROOT-CAUSED and fixed.** The "random" re-prompt
+  (still open at v1.0.0) was finally reproduced and diagnosed: it was **never a code-signing
+  problem** — Claude Dials' identity-based ACL grant was intact the whole time. The real trigger is
+  the keychain item's **partition list**. macOS allows a silent read only if the caller is both in
+  the item's trusted-app ACL *and* its code-signing partition is in the item's partition list.
+  Claude Code owns the item and rewrites it on every token refresh, which **resets the partition
+  list and drops Claude Dials' `teamid:TQ6Y49W7UW` partition** — so the next read prompts, "Always
+  Allow" re-adds it, and the next refresh wipes it again (≈ Claude Code's refresh cadence = the
+  "random" feel). Proven by dumping the ACL before/after a refresh: `teamid:` present → gone, while
+  `apple-tool:` survived. **Fix:** `KeychainReader` now reads via `/usr/bin/security` (a subprocess)
+  instead of in-process `SecItemCopyMatching`. `/usr/bin/security` lives in the `apple-tool:`
+  partition — exactly the one Claude Code's writes preserve — so the read stays silent across
+  refreshes. Verified: `security` read the secret silently *with the teamid partition already
+  dropped* (the previously-prompting state). Net effect: at most one prompt ever on a fresh machine
+  (to trust `/usr/bin/security` once), then silent forever. This also makes the app's own signature
+  irrelevant to keychain access, so `build.sh`'s stable-signing is no longer load-bearing for the
+  prompt (kept anyway — it's still the build script and gives a stable identity for other uses).
+  **Not yet shipped** — code committed, pending a v1.0.1 release decision.
 - **2026-07-03 — repo made public to enable Sparkle.** Sparkle's update check is a plain
   unauthenticated HTTPS GET — a private repo's release assets 404 for it. Every other Northwoods
   Sparkle app (Junk Drawer, Synaxis, Whisper Verses, Canopy, etc.) is a public repo; none had ever
@@ -102,7 +120,7 @@ ClaudeDials/
 ├── Theme.swift                   brand palette, surface tiers, Myriad type scale, spacing
 ├── Models/Account.swift          Account, AppConfig, ConfigStore (UserDefaults)
 ├── Models/Usage.swift            UsageWindow, ModelWeeklyLimit, AccountUsage, AccountState, AccountSnapshot
-├── Services/KeychainReader.swift reads "Claude Code-credentials" (read-only, default login)
+├── Services/KeychainReader.swift reads "Claude Code-credentials" via /usr/bin/security (read-only)
 ├── Services/AccountIdentityResolver.swift  ~/.claude.json oauthAccount → friendly name
 ├── Services/UsageClient.swift    GET /api/oauth/usage (+ ClaudeCodeVersion UA resolver)
 ├── Services/UsageMonitor.swift   coordinator/poller (@MainActor ObservableObject)
@@ -141,18 +159,27 @@ to the `app-updates` GitHub release, download that zip, sign it, put the signatu
 Ask Aaron before bumping the version.
 
 ## Conventions & gotchas
-- **Stable signing or the Keychain prompt never stops (2026-06-22 fix).** The app reads
-  another app's Keychain item; macOS binds "Always Allow" to the app's *code signature*.
-  Ad-hoc signing (`CODE_SIGN_IDENTITY "-"`) has no stable identity — its hash changes every
-  build, so each rebuild looks like a new app and re-prompts (and granting one copy never
-  helped another). Fix: `build.sh` re-signs the finished bundle (Sparkle inside-out) with the
-  Apple Development cert already on this Mac (`Apple Development: larson.central@pm.me`, team
-  `TQ6Y49W7UW`, SHA-1 `C7C47640D77786FC360C811388F289BB0B71143C`). With a real cert the
-  Keychain's designated requirement is identity-based (bundle id + team), so one "Always Allow"
-  sticks across all rebuilds and copies. xcodebuild's own manual/automatic signing couldn't
-  match the cert (wants a "Mac Development" cert / logged-in Xcode account that don't exist),
-  so we keep xcodebuild ad-hoc and re-sign in `build.sh` instead. If the cert ever expires/
-  rotates, re-grant once and update the SHA-1 (`security find-identity -v -p codesigning`).
+- **Keychain read goes through `/usr/bin/security`, NOT in-process (2026-07-03 fix — the real
+  cure for the recurring prompt).** macOS gates a *silent* keychain read on two things: the caller
+  must be in the item's trusted-app ACL **and** its code-signing partition must be in the item's
+  partition list. Claude Code owns the credential item and rewrites it on every token refresh,
+  resetting the partition list and dropping Claude Dials' `teamid:TQ6Y49W7UW` partition → the next
+  in-process read prompts. Reading via `/usr/bin/security` sidesteps this: that Apple binary is in
+  the `apple-tool:` partition, which is exactly the partition Claude Code's writes *preserve*, so
+  it never gets dropped. Because keychain access is now evaluated against `/usr/bin/security` (not
+  Claude Dials' own bundle), **the app's own signature is irrelevant to keychain prompts.** Don't
+  "optimize" this back to `SecItemCopyMatching` — that reintroduces the recurring prompt. The
+  secret only ever crosses the subprocess's stdout, never a command-line argument.
+- **`build.sh` stable signing (2026-06-22) — now belt-and-suspenders, not load-bearing.** It was
+  originally the fix for a *rebuild* re-prompt: ad-hoc signing (`CODE_SIGN_IDENTITY "-"`) has no
+  stable identity, so each rebuild looked like a new app to the in-process reader. Since the read
+  now goes through `/usr/bin/security` (above), the app's signature no longer affects keychain
+  prompts at all. `build.sh` still re-signs the bundle (Sparkle inside-out) with the Apple
+  Development cert (`Apple Development: larson.central@pm.me`, team `TQ6Y49W7UW`, SHA-1
+  `C7C47640D77786FC360C811388F289BB0B71143C`) for a stable identity, which is harmless and fine to
+  keep — just no longer the thing standing between you and the prompt. Keep building via
+  `./build.sh` regardless (it's the canonical build). If the cert expires/rotates, update the SHA-1
+  (`security find-identity -v -p codesigning`).
 - **Unofficial data source.** Endpoint, headers (`anthropic-beta: oauth-2025-04-20`, the REQUIRED
   `User-Agent: claude-code/<version>` — without it you get persistent 429s), response shape, and
   the Keychain service-name hash are all reverse-engineered. Treat 401/403/429/schema-drift as
@@ -160,7 +187,8 @@ Ask Aaron before bumping the version.
 - **No token refresh, by design.** We re-read the Keychain each poll and piggyback on Claude
   Code's own refresh. If the token's expired we show `tokenExpired` (open Claude Code to refresh),
   never refresh ourselves — that would fight Claude Code over the rotating refresh token and needs
-  a Keychain *write* (the repeat-ACL-prompt source we removed). Keychain access is read-only.
+  a Keychain *write*. Keychain access is read-only — and as of 2026-07-03 the read is done by
+  spawning `/usr/bin/security` (see the read-path gotcha below), not `SecItemCopyMatching`.
   Max-tier tokens last ~8 h, so this is fine in practice. (A v1 build briefly had a `TokenRefresher`
   for app-owned second-account profiles; removed with the second account on 2026-06-16.)
 - **Keychain service name** (decompiled from Claude Code): the default login = `Claude
@@ -185,16 +213,17 @@ Ask Aaron before bumping the version.
   `AccountSectionView` renders one meter per entry found, so the UI adapts automatically to
   whatever Anthropic scopes next (Sonnet, Opus, a new model) without another code change. Don't
   hardcode a model name anywhere in this path again.
-- **Keychain "Always Allow" resets on `claude login` account switches — expected, not a Claude
-  Dials bug.** The 2026-06-22 stable-signing fix eliminated the *ad-hoc-rebuild* churn (confirmed
-  2026-07-03: the credential item's ACL has exactly one working identity-based grant plus ~11
-  harmless dead entries from pre-fix ad-hoc builds). Switching which Claude account is logged in
-  via the CLI still forces one fresh "Always Allow" per switch — Claude Code owns that credential
-  item and its login flow evidently doesn't preserve the item's ACL across a switch the way a
-  same-account token refresh does (refresh only updates `mdat`, not the item's identity; confirmed
-  by inspecting `security find-generic-password` timestamps). Nothing in Claude Dials can prevent
-  this — it only ever reads. If prompts start appearing *without* an account switch, that's the
-  part to actually investigate (not yet reproduced).
+- **The recurring prompt was the partition list, not account switches (2026-07-03 — corrected).**
+  Earlier notes blamed `claude login` account switches and treated the "random" prompt as
+  unexplained. Both were wrong. The real mechanism (see the `/usr/bin/security` gotcha above) is
+  that Claude Code resets the item's **partition list** on *every* token rewrite — refresh included,
+  not just login — dropping Claude Dials' `teamid` partition and forcing a fresh "Always Allow".
+  The signature-based ACL grant is intact throughout (verified by dumping the ACL: `entry 0 …
+  (OK)` survives; only the `partition_id` entry loses `teamid:TQ6Y49W7UW` while `apple-tool:`
+  stays). Since v1.0.1 reads via `/usr/bin/security`, this no longer prompts. If prompts ever
+  return, re-dump the ACL (`security dump-keychain -a ~/Library/Keychains/login.keychain-db`) and
+  check whether `apple-tool:` is still in the partition list — that's the assumption the fix rests
+  on.
 - **Verifying UI on a Mac with a menu-bar manager:** the manager hides the status item, so use the
   `CLAUDEDIALS_DUMP` diagnostic rather than screenshotting the live menu bar.
 - **GENERATE_INFOPLIST_FILE + Sparkle keys** injected via `INFOPLIST_KEY_*` (same pattern as Junk
@@ -219,3 +248,4 @@ End a work session with **`/save`**.
 | 2026-06-22 | Stable-signing fix for the repeating Keychain prompt: added `build.sh` (re-signs with the Apple Development cert so "Always Allow" sticks across rebuilds); switched build command to `./build.sh`; documented the signing gotcha. Synced README/DESIGN to the single-account model (both still described two accounts). |
 | 2026-07-03 | Fixed usage-endpoint schema drift: `seven_day_opus` is now always `null`, replaced by a dynamic `limits[]` array (currently scoping **Fable**, not Opus, on this account). Added `ModelWeeklyLimit`; `UsageClient`/`AccountSectionView` now render whatever model(s) the API actually scopes instead of a hardcoded Opus meter. Fixed a real bug: capsule ring color was session-only, ignoring `worstUtilization` — now correctly worst-window. Diagnosed the recurring Keychain prompt: the June 22 fix is confirmed working (one valid identity-based ACL grant + harmless dead entries from old ad-hoc builds); remaining prompts happen on `claude login` account switches (expected, outside Claude Dials' control) plus an occasional unreproduced "random" case still open. |
 | 2026-07-03 | **Shipped v1.0.0 — first release.** Made the repo public (was private) so Sparkle's unauthenticated download works, matching every other Northwoods Sparkle app; security-reviewed clean beforehand (no secrets in repo). Built + ad-hoc signed a distribution copy (separate from the locally dev-cert-signed daily-use copy), created the `v1.0.0` GitHub release, signed the downloaded zip, and created `appcast-claudedials.xml` in `app-updates` (this app's first appcast). |
+| 2026-07-03 | **Root-caused & fixed the recurring Keychain prompt.** Not a signing issue — Claude Code resets the credential item's *partition list* on every token refresh, dropping Claude Dials' `teamid` partition and forcing a fresh "Always Allow". `KeychainReader` now reads via `/usr/bin/security` (inherits the stable `apple-tool:` partition Claude Code preserves) instead of in-process `SecItemCopyMatching`. Verified silent read in the previously-prompting state. Corrected the CLAUDE.md gotchas that had blamed signing/account-switches. Pending a v1.0.1 release. |
