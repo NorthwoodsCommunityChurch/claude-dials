@@ -17,7 +17,6 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
     // Window presenters injected by AppDelegate (LSUIElement app has no Scene windows by default).
     var presentSettings: () -> Void = {}
     var presentAbout: () -> Void = {}
-    var presentConnectAccount: () -> Void = {}
 
     init(monitor: UsageMonitor, updater: SPUUpdater) {
         self.monitor = monitor
@@ -53,9 +52,7 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         popover.delegate = self
         let root = PopoverView(
             monitor: monitor,
-            onConnectSecond: { [weak self] in self?.closePopoverThen { self?.presentConnectAccount() } },
-            onOpenSettings: { [weak self] in self?.closePopoverThen { self?.presentSettings() } },
-            onReconnect: { [weak self] _ in self?.closePopoverThen { self?.presentConnectAccount() } }
+            onOpenSettings: { [weak self] in self?.closePopoverThen { self?.presentSettings() } }
         )
         popover.contentViewController = NSHostingController(rootView: root)
     }
@@ -103,11 +100,11 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         menu.addItem(refresh)
         menu.addItem(.separator())
 
-        if monitor.isSingleAccountFirstRun {
-            let connect = NSMenuItem(title: "Connect Second Account…", action: #selector(connectAccount), keyEquivalent: "")
-            connect.target = self
-            menu.addItem(connect)
-        }
+        let launch = NSMenuItem(title: "Open at Login", action: #selector(toggleLaunchAtLogin), keyEquivalent: "")
+        launch.target = self
+        launch.state = LaunchAtLogin.isEnabled ? .on : .off
+        menu.addItem(launch)
+
         let settings = NSMenuItem(title: "Settings…", action: #selector(openSettings), keyEquivalent: ",")
         settings.target = self
         menu.addItem(settings)
@@ -128,8 +125,8 @@ final class StatusBarController: NSObject, NSPopoverDelegate {
         DispatchQueue.main.async { [weak self] in self?.statusItem.menu = nil }
     }
 
+    @objc private func toggleLaunchAtLogin() { LaunchAtLogin.set(!LaunchAtLogin.isEnabled) }
     @objc private func refreshNow() { Task { await monitor.refresh() } }
-    @objc private func connectAccount() { presentConnectAccount() }
     @objc private func openSettings() { presentSettings() }
     @objc private func openAbout() { presentAbout() }
     @objc private func checkForUpdates() { updater.checkForUpdates() }

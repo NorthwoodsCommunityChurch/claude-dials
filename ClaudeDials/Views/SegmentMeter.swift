@@ -23,7 +23,7 @@ struct SegmentMeter: View {
                 .font(Theme.Typo.meterLabel)
                 .tracking(1.6)
                 .foregroundStyle(Theme.Ink.tertiary)
-                .frame(width: 34, alignment: .leading)
+                .frame(width: 44, alignment: .leading)
 
             HStack(spacing: 2) {
                 ForEach(0..<segmentCount, id: \.self) { i in

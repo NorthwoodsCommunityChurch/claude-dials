@@ -7,17 +7,28 @@ struct UsageWindow: Equatable {
     let resetsAt: Date?
 }
 
+/// A per-model weekly cap, e.g. Anthropic currently scoping a separate weekly
+/// limit to Fable specifically while Opus/Sonnet share the general pool. Which
+/// models (if any) get their own scoped limit is decided server-side and can
+/// change without notice — render whatever comes back, don't hardcode names.
+struct ModelWeeklyLimit: Equatable, Identifiable {
+    var id: String { modelName }
+    let modelName: String
+    let window: UsageWindow
+}
+
 /// The parsed `/api/oauth/usage` response for one account.
-/// Field names mirror the endpoint: five_hour / seven_day / seven_day_opus.
+/// Field names mirror the endpoint: five_hour / seven_day / limits[].
 struct AccountUsage: Equatable {
-    let session: UsageWindow?      // five_hour
-    let week: UsageWindow?         // seven_day
-    let weekOpus: UsageWindow?     // seven_day_opus
+    let session: UsageWindow?                        // five_hour
+    let week: UsageWindow?                            // seven_day
+    let modelWeeklyLimits: [ModelWeeklyLimit]         // limits[] where kind == "weekly_scoped"
 
     /// Worst utilization across all known windows — drives the capsule color so it
     /// never under-reports.
     var worstUtilization: Double {
-        [session, week, weekOpus].compactMap { $0?.utilization }.max() ?? 0
+        ([session, week].compactMap { $0?.utilization } + modelWeeklyLimits.map { $0.window.utilization })
+            .max() ?? 0
     }
 }
 

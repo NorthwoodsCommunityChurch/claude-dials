@@ -10,10 +10,14 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private let monitor = UsageMonitor()
 
     private var settingsWindow: NSWindow?
-    private var connectWindow: NSWindow?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         FontRegistrar.registerBundledFonts()
+        // Don't register a login item during a diagnostic dump — that would point
+        // the login item at whatever (possibly build-folder) binary ran the dump.
+        if !DiagnosticDump.isEnabled {
+            LaunchAtLogin.enableOnFirstLaunch()
+        }
 
         updaterController = SPUStandardUpdaterController(
             startingUpdater: true, updaterDelegate: nil, userDriverDelegate: nil
@@ -22,7 +26,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         statusBar = StatusBarController(monitor: monitor, updater: updaterController.updater)
         statusBar.presentSettings = { [weak self] in self?.showSettings() }
         statusBar.presentAbout = { [weak self] in self?.showAbout() }
-        statusBar.presentConnectAccount = { [weak self] in self?.showConnectAccount() }
 
         monitor.start()
 
@@ -46,7 +49,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showSettings() {
         if let w = settingsWindow { focus(w); return }
-        let view = SettingsView(monitor: monitor, onConnectSecond: { [weak self] in self?.showConnectAccount() })
+        let view = SettingsView(monitor: monitor)
         let window = makeWindow(title: "Claude Dials Settings", view: view)
         settingsWindow = window
         focus(window)
@@ -54,17 +57,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     private func showAbout() {
         let window = makeWindow(title: "About Claude Dials", view: AboutView(), resizable: false)
-        focus(window)
-    }
-
-    private func showConnectAccount() {
-        if let w = connectWindow { focus(w); return }
-        let view = ConnectAccountView(monitor: monitor, onDone: { [weak self] in
-            self?.connectWindow?.close()
-            self?.connectWindow = nil
-        })
-        let window = makeWindow(title: "Connect Account", view: view, resizable: false)
-        connectWindow = window
         focus(window)
     }
 

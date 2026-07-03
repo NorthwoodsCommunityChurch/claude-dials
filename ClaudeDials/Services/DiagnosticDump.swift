@@ -19,9 +19,7 @@ enum DiagnosticDump {
         writePNG(capsule, to: "\(dir)/claudedials_capsule.png", scale: 6)
 
         // Popover at real size.
-        let popover = PopoverView(
-            monitor: monitor, onConnectSecond: {}, onOpenSettings: {}, onReconnect: { _ in }
-        )
+        let popover = PopoverView(monitor: monitor, onOpenSettings: {})
         renderSwiftUI(popover, to: "\(dir)/claudedials_popover.png")
 
         // About panel.

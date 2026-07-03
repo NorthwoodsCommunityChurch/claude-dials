@@ -1,5 +1,4 @@
 import Foundation
-import CryptoKit
 
 /// The OAuth credential Claude Code stores in the login Keychain.
 /// Shape verified from the Claude Code binary: `{ "claudeAiOauth": { ... } }`.
@@ -36,51 +35,25 @@ enum KeychainError: Error {
     case malformed
 }
 
-/// Reads Claude Code's OAuth credentials from the macOS login Keychain.
+/// Reads Claude Code's OAuth credential from the macOS login Keychain.
 ///
-/// Service-name scheme (decompiled from Claude Code): the default install uses
-/// `"Claude Code-credentials"`; a `CLAUDE_CONFIG_DIR` profile uses
-/// `"Claude Code-credentials-<first 8 hex of sha256(NFC(configDirPath))>"`.
-/// Each profile is an isolated Keychain item, which is how two accounts can be
-/// read at once.
+/// Claude Dials watches the *default* Claude Code login only, stored under the
+/// service name `"Claude Code-credentials"` (decompiled from Claude Code). We
+/// only ever read — never write — so we never take ownership of the item or
+/// trigger a "modify" prompt; the user grants read access once ("Always Allow").
 enum KeychainReader {
 
-    private static let baseService = "Claude Code-credentials"
+    private static let service = "Claude Code-credentials"
 
-    /// Computes the Keychain service name for a given config dir (nil = default).
-    static func serviceName(forConfigDir configDir: String?) -> String {
-        guard let configDir, !configDir.isEmpty else { return baseService }
-        let normalized = (configDir as NSString).expandingTildeInPath
-            .precomposedStringWithCanonicalMapping            // NFC
-        let digest = SHA256.hash(data: Data(normalized.utf8))
-        let hex = digest.map { String(format: "%02x", $0) }.joined()
-        return "\(baseService)-\(hex.prefix(8))"
-    }
-
-    /// Reads and parses the credential for an account. Throws `.notFound` when no
-    /// Keychain item exists (account is disconnected).
-    static func credential(forConfigDir configDir: String?) throws -> ClaudeCredential {
-        let service = serviceName(forConfigDir: configDir)
-        let data = try rawData(service: service)
-        return try parse(data)
-    }
-
-    /// Returns true if a Keychain item exists for this account. Checks *existence
-    /// only* (no secret data requested), so it never triggers the access prompt —
-    /// important for launch-time discovery, which must not block on a dialog.
-    static func hasCredential(forConfigDir configDir: String?) -> Bool {
-        let query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: serviceName(forConfigDir: configDir),
-            kSecMatchLimit as String: kSecMatchLimitOne,
-        ]
-        var item: CFTypeRef?
-        return SecItemCopyMatching(query as CFDictionary, &item) == errSecSuccess
+    /// Reads and parses the credential. Throws `.notFound` when no Keychain item
+    /// exists (the user isn't logged into Claude Code).
+    static func credential() throws -> ClaudeCredential {
+        try parse(rawData())
     }
 
     // MARK: - Private
 
-    private static func rawData(service: String) throws -> Data {
+    private static func rawData() throws -> Data {
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,

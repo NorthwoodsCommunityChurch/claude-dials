@@ -59,13 +59,6 @@ enum Theme {
         }
     }
 
-    // MARK: - Account color-block tiers
-
-    /// Brand color for an account's color-block header, by index.
-    static func blockColor(forAccountIndex index: Int) -> Color {
-        index == 0 ? Brand.blue : Brand.navy
-    }
-
     // MARK: - Spacing rhythm
 
     enum Space {

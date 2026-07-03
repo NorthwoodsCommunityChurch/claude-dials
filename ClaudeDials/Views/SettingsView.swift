@@ -1,23 +1,17 @@
 import SwiftUI
 
-/// Settings window — utility surface (stock Form is intentional here), with the
-/// account list rendered as custom rows since they carry brand identity.
+/// Settings window — utility surface (stock Form is intentional here). Shows the
+/// detected account read-only (the name comes from whoever is logged into Claude
+/// Code, not a manual label) plus the poll interval.
 struct SettingsView: View {
-    var monitor: UsageMonitor
-    var onConnectSecond: () -> Void
+    @ObservedObject var monitor: UsageMonitor
 
-    @State private var accounts: [Account] = ConfigStore.shared.config.accounts
     @State private var pollMinutes: Double = ConfigStore.shared.config.pollInterval / 60
 
     var body: some View {
         Form {
-            Section("Accounts") {
-                ForEach($accounts) { $account in
-                    AccountRow(account: $account) { save() }
-                }
-                if accounts.count < 2 {
-                    Button("Connect second account…", action: onConnectSecond)
-                }
+            Section("Account") {
+                accountRow
             }
 
             Section("Polling") {
@@ -33,38 +27,41 @@ struct SettingsView: View {
             }
 
             Section {
-                Text("Claude Dials reads the usage data that Claude Code's /usage screen shows. The endpoint is unofficial and may change.")
+                Text("Claude Dials reads the usage data that Claude Code's /usage screen shows for the account you're logged into. The endpoint is unofficial and may change.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
         .formStyle(.grouped)
-        .frame(width: 420, height: 360)
-        .onAppear { accounts = ConfigStore.shared.config.accounts }
+        .frame(width: 420, height: 320)
+    }
+
+    @ViewBuilder
+    private var accountRow: some View {
+        let id = monitor.snapshots.first?.id
+        let name = id.map { monitor.displayLabel(for: $0) } ?? "—"
+        let email = id.flatMap { monitor.identities[$0]?.email }
+
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(name)
+                if let email, !email.isEmpty {
+                    Text(email)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+            Spacer()
+            Text("Claude Code login")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
     }
 
     private func save() {
         var config = ConfigStore.shared.config
-        config.accounts = accounts
         config.pollInterval = pollMinutes * 60
         ConfigStore.shared.save(config)
         monitor.reloadConfig()
-    }
-}
-
-private struct AccountRow: View {
-    @Binding var account: Account
-    var onCommit: () -> Void
-
-    var body: some View {
-        HStack {
-            TextField("Label", text: $account.label)
-                .textFieldStyle(.plain)
-                .onSubmit(onCommit)
-            Spacer()
-            Text(account.configDir == nil ? "default" : "profile")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-        }
     }
 }

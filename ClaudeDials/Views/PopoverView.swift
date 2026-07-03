@@ -1,55 +1,26 @@
 import SwiftUI
 
-/// The popover shown from the menu-bar capsule. Routes between the onboarding
-/// hero (single-account first run) and the populated multi-account view.
+/// The popover shown from the menu-bar capsule: the monitored account's live
+/// session usage, with header and footer chrome.
 struct PopoverView: View {
     @ObservedObject var monitor: UsageMonitor
-    @AppStorage("onboardingDismissed") private var onboardingDismissed = false
 
-    var onConnectSecond: () -> Void
     var onOpenSettings: () -> Void
-    var onReconnect: (UUID) -> Void
-
-    private var showOnboarding: Bool {
-        monitor.isSingleAccountFirstRun && !onboardingDismissed
-    }
 
     var body: some View {
-        Group {
-            if showOnboarding {
-                OnboardingView(
-                    monitor: monitor,
-                    onConnect: onConnectSecond,
-                    onSkip: { onboardingDismissed = true }
-                )
-            } else {
-                populated
-            }
-        }
-        .frame(width: 330)
-        .background(Theme.Surface.panel)
-    }
-
-    // MARK: - Populated
-
-    private var populated: some View {
         VStack(spacing: 0) {
             header
             ForEach(monitor.snapshots) { snapshot in
-                if let account = monitor.account(for: snapshot.id) {
-                    AccountSectionView(
-                        account: account,
-                        snapshot: snapshot,
-                        accountIndex: monitor.index(of: snapshot.id),
-                        resetsNext: resetsNextID == snapshot.id,
-                        tierBadge: snapshot.tier ?? "CLAUDE",
-                        displayLabel: monitor.displayLabel(for: snapshot.id),
-                        onReconnect: { onReconnect(snapshot.id) }
-                    )
-                }
+                AccountSectionView(
+                    snapshot: snapshot,
+                    tierBadge: snapshot.tier ?? "CLAUDE",
+                    displayLabel: monitor.displayLabel(for: snapshot.id)
+                )
             }
             footer
         }
+        .frame(width: 330)
+        .background(Theme.Surface.panel)
     }
 
     private var header: some View {
@@ -98,16 +69,5 @@ struct PopoverView: View {
         .padding(.horizontal, Theme.Space.large)
         .padding(.vertical, Theme.Space.small)
         .overlay(Rectangle().fill(Theme.Surface.hairline).frame(height: 1), alignment: .top)
-    }
-
-    /// The account whose session window resets soonest — marked with the pointer.
-    private var resetsNextID: UUID? {
-        monitor.snapshots
-            .compactMap { snap -> (UUID, Date)? in
-                guard let reset = snap.state.usage?.session?.resetsAt else { return nil }
-                return (snap.id, reset)
-            }
-            .min { $0.1 < $1.1 }?
-            .0
     }
 }

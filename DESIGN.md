@@ -3,6 +3,13 @@
 Menu-bar utility showing live Claude session usage for two accounts as twin ring dials in a
 dark capsule, with a broadcast-style detail popover. Companion-family app to Junk Drawer.
 
+> ⚠️ **Superseded in part (2026-06-16):** the app collapsed from **two accounts → one** (the
+> default Claude Code login). The **twin-ring** capsule is now a **single ring**, and the
+> **onboarding / "Connect second account"** sections below describe removed functionality —
+> read them as the original locked design, not current behavior. Everything else (aesthetic
+> direction, palette, ring/meter treatment, degraded states) still holds. See
+> [CLAUDE.md](CLAUDE.md) for the current single-account architecture.
+
 ---
 
 ## 1. Aesthetic direction (one sentence)
@@ -90,6 +97,11 @@ States: filled ring (ok) · dimmed ring (stale data, last-known %) · hollow das
 (disconnected / no credential) · hollow ring + dot (endpoint down).
 
 ### Popover — populated (primary view)
+
+> The second meter row below is labeled "OPUS" in this original mockup, but the label is
+> illustrative, not fixed — it renders whichever model Anthropic currently metes out its own
+> scoped weekly cap for (verified 2026-07-03 to currently be Fable, not Opus). See CLAUDE.md
+> "Conventions & gotchas" for the current field semantics.
 
 ```
 ┌──────────────────────────────────┐

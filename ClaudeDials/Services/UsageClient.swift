@@ -62,7 +62,7 @@ enum UsageClient {
         return AccountUsage(
             session: window(root["five_hour"]),
             week: window(root["seven_day"]),
-            weekOpus: window(root["seven_day_opus"])
+            modelWeeklyLimits: modelWeeklyLimits(root)
         )
     }
 
@@ -70,6 +70,38 @@ enum UsageClient {
         guard let dict = value as? [String: Any] else { return nil }
         guard let util = (dict["utilization"] as? NSNumber)?.doubleValue else { return nil }
         return UsageWindow(utilization: util, resetsAt: parseDate(dict["resets_at"]))
+    }
+
+    /// Reads whichever per-model weekly caps the account currently has, from the
+    /// `limits[]` array (`kind == "weekly_scoped"`). Anthropic decides server-side
+    /// which model(s) get their own scoped limit — today that's Fable; historically
+    /// it was Opus via a dedicated `seven_day_opus` field. Sorted worst-first so the
+    /// tightest constraint is most visible. Falls back to the legacy top-level
+    /// `seven_day_opus` / `seven_day_sonnet` fields if `limits[]` isn't present at
+    /// all, in case an older account shape is still being served.
+    private static func modelWeeklyLimits(_ root: [String: Any]) -> [ModelWeeklyLimit] {
+        if let limits = root["limits"] as? [[String: Any]] {
+            return limits
+                .compactMap { entry -> ModelWeeklyLimit? in
+                    guard
+                        entry["kind"] as? String == "weekly_scoped",
+                        let scope = entry["scope"] as? [String: Any],
+                        let model = scope["model"] as? [String: Any],
+                        let name = model["display_name"] as? String,
+                        let percent = (entry["percent"] as? NSNumber)?.doubleValue
+                    else { return nil }
+                    let window = UsageWindow(utilization: percent, resetsAt: parseDate(entry["resets_at"]))
+                    return ModelWeeklyLimit(modelName: name, window: window)
+                }
+                .sorted { $0.window.utilization > $1.window.utilization }
+        }
+
+        return [
+            ("Opus", root["seven_day_opus"]),
+            ("Sonnet", root["seven_day_sonnet"]),
+        ].compactMap { name, value in
+            window(value).map { ModelWeeklyLimit(modelName: name, window: $0) }
+        }
     }
 
     private static func parseDate(_ value: Any?) -> Date? {

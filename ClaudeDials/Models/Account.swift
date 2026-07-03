@@ -31,8 +31,9 @@ struct AppConfig: Codable {
     )
 }
 
-/// Loads/saves `AppConfig` to `UserDefaults`. On first launch, seeds a single
-/// default-config-dir account (the one Claude Code logs in by default).
+/// Loads/saves `AppConfig` to `UserDefaults`. Claude Dials watches exactly one
+/// account — the default Claude Code login — so the stored config is always
+/// collapsed to that single account on load.
 @MainActor
 final class ConfigStore {
     static let shared = ConfigStore()
@@ -43,10 +44,21 @@ final class ConfigStore {
     private init() {
         if let data = UserDefaults.standard.data(forKey: key),
            let decoded = try? JSONDecoder().decode(AppConfig.self, from: data) {
-            config = decoded
+            config = Self.collapsedToSingleAccount(decoded)
         } else {
             config = .default
         }
+    }
+
+    /// Older builds could persist a second `CLAUDE_CONFIG_DIR` profile alongside
+    /// the default login. We now watch only the default account, so drop any
+    /// extra profiles and keep the single default-config-dir account.
+    private static func collapsedToSingleAccount(_ config: AppConfig) -> AppConfig {
+        var c = config
+        let defaultAccount = c.accounts.first { $0.configDir == nil }
+            ?? Account(label: "Account 1", configDir: nil)
+        c.accounts = [defaultAccount]
+        return c
     }
 
     func save(_ newConfig: AppConfig) {
@@ -54,25 +66,5 @@ final class ConfigStore {
         if let data = try? JSONEncoder().encode(newConfig) {
             UserDefaults.standard.set(data, forKey: key)
         }
-    }
-
-    func addAccount(_ account: Account) {
-        var c = config
-        c.accounts.append(account)
-        save(c)
-    }
-
-    func updateAccount(_ account: Account) {
-        var c = config
-        if let idx = c.accounts.firstIndex(where: { $0.id == account.id }) {
-            c.accounts[idx] = account
-            save(c)
-        }
-    }
-
-    func removeAccount(id: UUID) {
-        var c = config
-        c.accounts.removeAll { $0.id == id }
-        save(c)
     }
 }

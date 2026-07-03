@@ -1,18 +1,14 @@
 import SwiftUI
 
-/// One account's full section: color-block header, session ring + countdown,
+/// The account's full section: color-block header, session ring + countdown,
 /// week/Opus segment meters, and any degraded-state strip. Every state from
 /// DESIGN.md (ok / stale / disconnected / token-expired / endpoint-down) renders
 /// here — none fall through to a blank.
 struct AccountSectionView: View {
-    let account: Account
     let snapshot: AccountSnapshot
-    let accountIndex: Int
-    let resetsNext: Bool
     let tierBadge: String
     /// Resolved, email-derived label ("Personal" / "Northwoods").
     let displayLabel: String
-    var onReconnect: () -> Void = {}
 
     private var usage: AccountUsage? { snapshot.state.usage }
 
@@ -21,7 +17,7 @@ struct AccountSectionView: View {
             ColorBlockHeader(
                 name: displayLabel,
                 tier: tierBadge,
-                color: Theme.blockColor(forAccountIndex: accountIndex)
+                color: Theme.Brand.blue
             )
 
             VStack(alignment: .leading, spacing: 0) {
@@ -31,8 +27,10 @@ struct AccountSectionView: View {
                 if let usage {
                     SegmentMeter(label: "WEEK", utilization: usage.week?.utilization)
                         .padding(.top, Theme.Space.tight)
-                    SegmentMeter(label: "OPUS", utilization: usage.weekOpus?.utilization)
-                        .padding(.top, Theme.Space.tight)
+                    ForEach(usage.modelWeeklyLimits) { limit in
+                        SegmentMeter(label: limit.modelName.uppercased(), utilization: limit.window.utilization)
+                            .padding(.top, Theme.Space.tight)
+                    }
                 }
             }
             .padding(.horizontal, Theme.Space.large)
@@ -47,12 +45,7 @@ struct AccountSectionView: View {
 
     private var sessionRow: some View {
         HStack(spacing: Theme.Space.large) {
-            ZStack(alignment: .leading) {
-                if resetsNext {
-                    PointerMarker().offset(x: -Theme.Space.large + 2)
-                }
-                RingDial(utilization: sessionUtilization)
-            }
+            RingDial(utilization: sessionUtilization)
 
             VStack(alignment: .leading, spacing: Theme.Space.tight) {
                 Text("SESSION")
@@ -128,11 +121,9 @@ struct AccountSectionView: View {
         case .endpointDown:
             WarningStrip(kind: .caution, title: "ENDPOINT NOT RESPONDING", subtitle: "· retrying")
         case .tokenExpired:
-            WarningStrip(
-                kind: .alert,
-                title: "TOKEN EXPIRED",
-                action: (label: "RECONNECT", perform: onReconnect)
-            )
+            // The default Claude Code login refreshes itself on next use — there's
+            // nothing for this app to reconnect, so this is informational only.
+            WarningStrip(kind: .alert, title: "TOKEN EXPIRED", subtitle: "· open Claude Code to refresh")
         default:
             EmptyView()
         }

@@ -10,8 +10,8 @@ struct RingSpec {
     var connected: Bool
 }
 
-/// Draws the menu-bar capsule: a warm-black pill containing up to two status
-/// rings — the app's silhouette. Colored (non-template) so status reads at a
+/// Draws the menu-bar capsule: a warm-black pill containing a single status
+/// ring — the app's silhouette. Colored (non-template) so status reads at a
 /// glance. Redrawn whenever usage changes.
 enum CapsuleStatusIcon {
 
@@ -19,6 +19,9 @@ enum CapsuleStatusIcon {
     /// status item and the diagnostic dump so the two can never drift apart.
     /// The fraction is the SESSION (5-hour) utilization — the same number as
     /// the popover's big dial; the weekly windows live in the popover's meters.
+    /// The ring's *color* is the worst window across session/week/model caps, so
+    /// the capsule never looks healthier than the tightest limit (e.g. a low
+    /// session % won't hide an account sitting at 90% of a model's weekly cap).
     @MainActor
     static func rings(from monitor: UsageMonitor) -> [RingSpec] {
         let specs: [RingSpec] = monitor.snapshots.enumerated().map { index, snap in
@@ -29,10 +32,12 @@ enum CapsuleStatusIcon {
             case .loading:
                 return RingSpec(fraction: 0, color: NSColor(hex: 0x86AD3F), initial: initial, connected: true)
             default:
-                let session = snap.state.usage?.session?.utilization ?? 0
+                let usage = snap.state.usage
+                let session = usage?.session?.utilization ?? 0
+                let worst = usage?.worstUtilization ?? session
                 return RingSpec(
                     fraction: session / 100,
-                    color: Theme.Status.nsColor(for: session),
+                    color: Theme.Status.nsColor(for: worst),
                     initial: initial,
                     connected: true
                 )

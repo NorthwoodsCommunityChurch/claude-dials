@@ -1,21 +1,20 @@
 # Claude Dials
 
-A menu-bar tally for your Claude session budget — two accounts as twin ring dials in a black capsule, going green → gold → coral like an on-air light.
+A menu-bar tally for your Claude session budget — a single ring dial in a black capsule, going green → gold → coral like an on-air light.
 
 ![Claude Dials popover](docs/images/popover-populated.png)
 
 ## Features
 
-- **Twin-ring capsule in the menu bar** — one ring per Claude account, filled to the 5-hour session usage, colored by the worst of your session / weekly / Opus windows so it never under-reports.
-- **Broadcast-style popover** — per-account color-block header, a session ring with a live countdown to reset, and segmented meters for the weekly and Opus limits.
-- **Two accounts at once** — monitor a personal and an organization account side by side, each in its own Claude Code profile.
+- **Single-ring capsule in the menu bar** — filled to your 5-hour session usage and colored by the worst of your session, weekly, and per-model weekly windows so it never under-reports.
+- **Broadcast-style popover** — a color-block header naming the logged-in account, a session ring with a live countdown to reset, and segmented meters for the weekly limit plus whichever model(s) currently carry their own scoped weekly cap (shown dynamically — whatever Anthropic is actually metering separately, e.g. Fable).
 - **Designed degraded states** — stale data dims to last-known; a lost credential goes hollow; an expired token or unreachable endpoint shows a clear warning strip instead of a blank.
-- **Zero configuration for account one** — it reads the account you're already logged into in Claude Code.
+- **Zero configuration** — it reads the account you're already logged into in Claude Code; the account name is resolved live, so it always tracks whoever is currently logged in.
 - **Auto-updates** via Sparkle.
 
-| Onboarding | About |
+| Popover | About |
 |---|---|
-| ![Onboarding](docs/images/onboarding.png) | ![About](docs/images/about.png) |
+| ![Popover](docs/images/popover-populated.png) | ![About](docs/images/about.png) |
 
 ## Requirements
 
@@ -36,22 +35,19 @@ credential from your Keychain — click **Always Allow**.
 
 ## Usage / Quick Start
 
-- **Left-click** the capsule to open the popover with full per-account detail.
+- **Left-click** the capsule to open the popover with full session detail.
 - **Right-click** for Refresh, Settings, About, Check for Updates, and Quit.
 - The dial fills and changes color as you use Claude: **green** under 60 %, **gold** 60–85 %, **coral** above 85 %.
 
-### Adding a second account
-
-A second account needs its own Claude Code profile (Claude Code stores one login
-per profile). Click **Connect second account…** in the popover or Settings — it
-opens Terminal and logs the second account into a dedicated profile, then lights
-the second dial automatically. Pick your *other* account in the browser that opens.
+Claude Dials follows whichever account you're logged into in Claude Code — to
+switch the account it tracks, switch your Claude Code login.
 
 ## Configuration
 
-Open **Settings** (right-click → Settings) to rename accounts and set the refresh
-interval (default 3 minutes — the usage endpoint is unofficial, so Claude Dials
-polls conservatively).
+Open **Settings** (right-click → Settings) to set the refresh interval (default
+3 minutes — the usage endpoint is unofficial, so Claude Dials polls
+conservatively). The account row is read-only; the name comes live from your
+Claude Code login.
 
 ## Building from Source
 
@@ -64,9 +60,13 @@ cd claude-dials
 git clone https://github.com/NorthwoodsCommunityChurch/northwoods-brand.git ../northwoods-brand
 cp ../northwoods-brand/assets/fonts/MyriadPro-{Regular,Semibold,Black}.otf ClaudeDials/Resources/Fonts/
 
-xcodegen generate
-xcodebuild -scheme ClaudeDials -configuration Release build
+./build.sh
 ```
+
+**Use `./build.sh`, not a bare `xcodebuild`.** A bare xcodebuild signs the app
+ad-hoc, whose identity changes on every build — macOS then re-prompts for
+Keychain access on every single rebuild. `build.sh` re-signs with a stable
+identity so one "Always Allow" sticks across rebuilds.
 
 If you skip the font copy the app still builds and runs — it falls back to the
 system font, just off-brand.
@@ -79,11 +79,11 @@ Claude Dials/
 │   ├── ClaudeDialsApp.swift        @main, menu-bar-only (LSUIElement)
 │   ├── AppDelegate.swift           wires Sparkle + StatusBarController + windows
 │   ├── StatusBarController.swift   the capsule status item + popover + context menu
-│   ├── CapsuleStatusIcon.swift     custom-drawn twin-ring menu-bar capsule
+│   ├── CapsuleStatusIcon.swift     custom-drawn single-ring menu-bar capsule
 │   ├── Theme.swift                 brand colors, fonts, spacing
 │   ├── Models/                     Account, Usage, ConfigStore
-│   ├── Services/                   KeychainReader, UsageClient, UsageMonitor, AccountSetupService
-│   ├── Views/                      RingDial, SegmentMeter, popover, onboarding, settings, about
+│   ├── Services/                   KeychainReader, AccountIdentityResolver, UsageClient, UsageMonitor, LaunchAtLogin
+│   ├── Views/                      RingDial, SegmentMeter, popover, settings, about
 │   └── Resources/Fonts/            bundled Myriad Pro OTFs
 ├── project.yml                     xcodegen source of truth
 ├── design/                         DESIGN.md lives in root; HTML mockup in design/sketches/
